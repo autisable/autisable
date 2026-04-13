@@ -1,4 +1,5 @@
 import Hero from "./components/home/Hero";
+import FeaturedStory from "./components/home/FeaturedStory";
 import ContentPillars from "./components/home/ContentPillars";
 import LatestPosts from "./components/home/LatestPosts";
 import PodcastSection from "./components/home/PodcastSection";
@@ -10,6 +11,7 @@ export default function Home() {
   return (
     <>
       <Hero />
+      <FeaturedStory />
       <ContentPillars />
       <NewsletterSection />
       <LatestPosts />
