@@ -91,6 +91,14 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
         </div>
       )}
 
+      {/* FTC Affiliate Disclosure - above content */}
+      <p className="text-sm text-zinc-400 italic mb-8">
+        This article may contain affiliate links.{" "}
+        <a href="/privacy#affiliate-disclosure" className="text-zinc-500 underline underline-offset-2 hover:text-brand-blue transition-colors">
+          Learn more
+        </a>
+      </p>
+
       {/* Content */}
       <div
         className="prose prose-zinc prose-lg max-w-none prose-headings:tracking-tight prose-a:text-brand-blue prose-img:rounded-xl"
