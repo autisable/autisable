@@ -4,14 +4,10 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabase } from "@/app/lib/supabase-browser";
 import BlogSidebar from "./BlogSidebar";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
+const supabase = getSupabase();
 interface Post {
   id: string;
   slug: string;

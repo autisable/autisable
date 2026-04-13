@@ -1,14 +1,10 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { getSupabase } from "@/app/lib/supabase-browser";
 import AuthModal from "./AuthModal";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
+const supabase = getSupabase();
 interface Comment {
   id: string;
   name: string;
