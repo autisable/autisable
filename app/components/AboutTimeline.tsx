@@ -87,6 +87,18 @@ const timelineItems = [
     ],
   },
   {
+    year: "2025",
+    sub: "Partnership",
+    era: "rebuild",
+    tag: "New platform",
+    title: "Two companies. One mission.",
+    paragraphs: [
+      "In 2025, Justin Bowman — founder of VizyPlan, a visual planning platform designed to help autistic individuals manage daily routines, transitions, and independence through visual schedules — connected with Joel about what it would take to rebuild Autisable the way it deserved to be built.",
+      "It wasn't a sponsorship conversation. It was two companies that had been working in different corners of the same community recognizing they could do more together. VizyPlan brought the technical resources, development team, and operational support to make a ground-up rebuild possible. Autisable brought sixteen years of community trust, editorial voice, and direct access to the families, professionals, and autistic individuals who could help shape VizyPlan into the tool the community actually needs.",
+      "The partnership works because it goes both ways. Autisable gets the infrastructure to become the platform it was always meant to be. VizyPlan gets a real connection to the community it was built to serve — feedback, visibility, and the kind of trust that only comes from being part of something people already believe in. Neither company could build what comes next alone. Together, the mission scales.",
+    ],
+  },
+  {
     year: "2026",
     sub: "Right now",
     era: "now",

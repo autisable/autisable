@@ -29,6 +29,20 @@ export default function MusicPage() {
         />
       </div>
 
+      {/* YouTube Music Videos */}
+      <div className="rounded-2xl overflow-hidden mb-6">
+        <iframe
+          src="https://www.youtube.com/embed?listType=uploads&list=UU7MGyNNQ_Z12b5fHFWZj05w"
+          width="100%"
+          height="315"
+          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          loading="lazy"
+          className="border-0 rounded-xl"
+          title="Autisable Music Videos on YouTube"
+        />
+      </div>
+
       {/* Platform links */}
       <div className="flex justify-center gap-3 mb-12">
         <a

@@ -85,7 +85,7 @@ export default function PodcastsPage() {
         <h2 className="text-2xl font-bold text-zinc-900 mb-6">Watch on YouTube</h2>
         <div className="rounded-2xl overflow-hidden bg-zinc-100">
           <iframe
-            src="https://www.youtube.com/embed?listType=user_uploads&list=autisabledads"
+            src="https://www.youtube.com/embed?listType=uploads&list=UUS_YsS0YhpU3nMMkeIM2TNg"
             width="100%"
             height="400"
             allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
