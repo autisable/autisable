@@ -23,8 +23,9 @@
   --color-border-light: #f4f4f5;
 
   /* Typography */
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-heading: "Inter", system-ui, -apple-system, sans-serif;
+  --font-sans: var(--font-inter), "Inter", system-ui, -apple-system, sans-serif;
+  --font-serif: var(--font-lora), "Lora", Georgia, "Times New Roman", serif;
+  --font-heading: var(--font-inter), "Inter", system-ui, -apple-system, sans-serif;
 }
 
 html {
