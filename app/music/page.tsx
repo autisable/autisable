@@ -16,17 +16,15 @@ export default function MusicPage() {
         </p>
       </div>
 
-      {/* YouTube Playlist Embed */}
-      <div className="aspect-video rounded-2xl overflow-hidden bg-zinc-100 mb-8">
-        <iframe
-          src="https://www.youtube.com/embed/videoseries?list=PLplaceholder"
-          width="100%"
-          height="100%"
-          allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          className="border-0"
-          title="Autisable Music Playlist"
-        />
+      {/* Music Playlist - awaiting embed URL */}
+      <div className="aspect-video rounded-2xl overflow-hidden bg-zinc-900 mb-8 flex items-center justify-center">
+        <div className="text-center">
+          <svg className="w-16 h-16 text-zinc-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="m9 9 10.5-3m0 6.553v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 1 1-.99-3.467l2.31-.66a2.25 2.25 0 0 0 1.632-2.163Zm0 0V2.25L9 5.25v10.303m0 0v3.75a2.25 2.25 0 0 1-1.632 2.163l-1.32.377a1.803 1.803 0 0 1-.99-3.467l2.31-.66A2.25 2.25 0 0 0 9 15.553Z" />
+          </svg>
+          <p className="text-zinc-400 text-lg font-medium">Music Playlist Coming Soon</p>
+          <p className="text-zinc-500 text-sm mt-1">Our curated playlist will be available here shortly.</p>
+        </div>
       </div>
 
       <div className="bg-zinc-50 rounded-2xl p-6 border border-zinc-100 mb-8">
