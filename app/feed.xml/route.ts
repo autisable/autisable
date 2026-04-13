@@ -1,5 +1,7 @@
 import { supabaseAdmin } from "@/app/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const { data: posts } = await supabaseAdmin
     .from("blog_posts")

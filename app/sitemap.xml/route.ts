@@ -1,5 +1,7 @@
 import { supabaseAdmin } from "@/app/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const siteUrl = "https://autisable.com";
 
