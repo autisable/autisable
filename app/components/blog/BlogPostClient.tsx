@@ -132,10 +132,9 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
       {/* Affiliate Disclosure */}
       <div className="mt-6 p-4 bg-zinc-50 rounded-xl border border-zinc-100">
         <p className="text-xs text-zinc-500 leading-relaxed">
-          <strong>Disclosure:</strong> Some links in this article may be affiliate links.
-          Autisable may earn a small commission at no additional cost to you when you make
-          a purchase through these links. This helps support the platform and our mission
-          to serve the autism community. All recommendations are genuine and editorially independent.
+          <strong>Disclosure:</strong> Autisable.com participates in affiliate programs, including the
+          Amazon Services LLC Associates Program and other affiliate advertising programs. This means we
+          may earn commissions from qualifying purchases at no additional cost to you.
         </p>
       </div>
 

@@ -107,9 +107,9 @@ export default function ResourcesPage() {
 
       <div className="mt-12 p-4 bg-zinc-50 rounded-xl border border-zinc-100">
         <p className="text-xs text-zinc-500 leading-relaxed">
-          <strong>Affiliate Disclosure:</strong> Some links on this page are affiliate links. Autisable
-          may earn a commission when you make a purchase through these links at no additional cost to you.
-          All recommendations are genuine and based on products and services we trust.
+          <strong>Disclosure:</strong> Autisable.com participates in affiliate programs, including the
+          Amazon Services LLC Associates Program and other affiliate advertising programs. This means we
+          may earn commissions from qualifying purchases at no additional cost to you.
         </p>
       </div>
     </div>

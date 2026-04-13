@@ -210,7 +210,7 @@ export default function BlogListClient() {
         )}
       </div>
 
-      <BlogSidebar categories={categories} activeCategory={activeCategory} />
+      <BlogSidebar categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
     </div>
   );
 }
