@@ -20,6 +20,11 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "Autisable",
+    images: [{ url: "/Logo.png", width: 600, height: 160, alt: "Autisable" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/Logo.png"],
   },
 };
 
