@@ -58,6 +58,17 @@ export default async function BlogPostPage({ params }: Props) {
 
   if (!post) notFound();
 
+  // Fetch author details
+  let author = null;
+  if (post.author_id) {
+    const { data } = await supabaseAdmin
+      .from("authors")
+      .select("display_name, bio, website, twitter, facebook, instagram, linkedin, youtube, avatar_url")
+      .eq("id", post.author_id)
+      .single();
+    author = data;
+  }
+
   const { data: related } = await supabaseAdmin
     .from("blog_posts")
     .select("id, slug, title, image, category, date")
@@ -67,5 +78,5 @@ export default async function BlogPostPage({ params }: Props) {
     .order("date", { ascending: false })
     .limit(3);
 
-  return <BlogPostClient post={post} relatedPosts={related || []} />;
+  return <BlogPostClient post={post} relatedPosts={related || []} author={author} />;
 }
