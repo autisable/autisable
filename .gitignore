@@ -42,6 +42,12 @@ yarn-error.log*
 # spec doc (confidential)
 *.docx
 
+# CSV data files
+*.csv
+
+# Other projects accidentally in this dir
+vizyplan-agents*/
+
 # vercel
 .vercel
 
