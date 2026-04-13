@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -48,6 +49,7 @@ const categories = [
         name: "VizyPlan",
         description: "Visual planning tools designed to help autistic individuals manage daily routines, transitions, and build independence through visual schedules.",
         href: "https://vizyplan.com",
+        logo: "/VizyPlan.png",
       },
     ],
   },
@@ -85,9 +87,20 @@ export default function ResourcesPage() {
                   className={`p-6 rounded-2xl border ${cat.color} hover:shadow-md transition-shadow`}
                 >
                   <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-zinc-900 mb-2">{resource.name}</h3>
-                      <p className="text-sm text-zinc-600 leading-relaxed">{resource.description}</p>
+                    <div className="flex items-start gap-4">
+                      {"logo" in resource && resource.logo && (
+                        <Image
+                          src={resource.logo}
+                          alt={resource.name}
+                          width={48}
+                          height={48}
+                          className="w-12 h-12 rounded-xl shrink-0 object-contain"
+                        />
+                      )}
+                      <div>
+                        <h3 className="text-lg font-semibold text-zinc-900 mb-2">{resource.name}</h3>
+                        <p className="text-sm text-zinc-600 leading-relaxed">{resource.description}</p>
+                      </div>
                     </div>
                     <a
                       href={resource.href}
