@@ -55,18 +55,12 @@ export default function FeaturedStory() {
         >
           {/* Image */}
           <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-zinc-100">
-            {post.image ? (
-              <Image
-                src={post.image}
-                alt={post.title}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full bg-gradient-to-br from-brand-blue-light to-brand-orange-light p-8">
-                <img src="/Logo.png" alt="Autisable" className="w-1/2 opacity-40" />
-              </div>
-            )}
+            <Image
+              src="/VizyAdvocate.png"
+              alt={post.title}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+            />
           </div>
 
           {/* Content */}
