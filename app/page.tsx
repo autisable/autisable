@@ -11,11 +11,11 @@ export default function Home() {
     <>
       <Hero />
       <ContentPillars />
+      <NewsletterSection />
       <LatestPosts />
       <PodcastSection />
       <CommunityPreview />
       <ResourcesSection />
-      <NewsletterSection />
     </>
   );
 }

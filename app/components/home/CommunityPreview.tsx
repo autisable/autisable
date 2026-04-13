@@ -12,12 +12,12 @@ export default function CommunityPreview() {
             Member Community
           </div>
           <h2 className="text-3xl sm:text-4xl font-bold text-zinc-900 tracking-tight">
-            A Safe Space to Share, Connect & Grow
+            A Community Built Around Real Conversation
           </h2>
           <p className="mt-4 text-lg text-zinc-600 max-w-2xl mx-auto leading-relaxed">
-            Our community is modeled after Autcraft — gentle guidance, not punishment.
-            Open conversation, not private messaging. A space designed to be safe,
-            not user-policed.
+            Our community is built on gentle guidance rather than punishment, open
+            conversation rather than private messaging, and a design philosophy
+            centered on safety without relying on user policing.
           </p>
         </div>
 
@@ -30,7 +30,7 @@ export default function CommunityPreview() {
                 </svg>
               ),
               title: "Personal Journal",
-              description: "Write privately or share with the community. Your space, your rules.",
+              description: "Write privately or share with the community. You choose.",
             },
             {
               icon: (

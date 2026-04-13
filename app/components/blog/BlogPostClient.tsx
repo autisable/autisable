@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import Comments from "../Comments";
 import BlogShareButtons from "./BlogShareButtons";
+import NewsletterPopup from "./NewsletterPopup";
 
 interface Post {
   id: string;
@@ -37,6 +38,7 @@ interface Props {
 
 export default function BlogPostClient({ post, relatedPosts }: Props) {
   return (
+    <>
     <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Header */}
       <header className="mb-10">
@@ -112,6 +114,31 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
         </div>
       )}
 
+      {/* Author Bio */}
+      {post.author_name && (
+        <div className="mt-10 p-6 bg-zinc-50 rounded-2xl border border-zinc-100 flex items-start gap-4">
+          <div className="w-14 h-14 rounded-full bg-brand-blue-light text-brand-blue flex items-center justify-center text-xl font-bold shrink-0">
+            {post.author_name.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-zinc-900">{post.author_name}</h3>
+            <p className="text-sm text-zinc-600 mt-1">
+              Contributor at Autisable. Sharing stories and perspectives from the autism community.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Affiliate Disclosure */}
+      <div className="mt-6 p-4 bg-zinc-50 rounded-xl border border-zinc-100">
+        <p className="text-xs text-zinc-500 leading-relaxed">
+          <strong>Disclosure:</strong> Some links in this article may be affiliate links.
+          Autisable may earn a small commission at no additional cost to you when you make
+          a purchase through these links. This helps support the platform and our mission
+          to serve the autism community. All recommendations are genuine and editorially independent.
+        </p>
+      </div>
+
       {/* Share */}
       <div className="mt-10 pt-8 border-t border-zinc-200">
         <BlogShareButtons title={post.title} slug={post.slug} />
@@ -156,5 +183,7 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
         </div>
       )}
     </article>
+    <NewsletterPopup />
+    </>
   );
 }

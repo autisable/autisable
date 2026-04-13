@@ -9,11 +9,11 @@ export default function Hero() {
           <div className="flex-1 text-center lg:text-left">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-blue/10 text-brand-blue text-sm font-medium mb-6">
               <span className="w-2 h-2 rounded-full bg-brand-green animate-pulse" />
-              A community for the autism world
+              Serving the autism community since 2008
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-zinc-900 leading-tight tracking-tight">
-              Pieces coming together.{" "}
-              <span className="text-brand-blue">Community</span> forming a whole.
+              18 Years of Community.{" "}
+              <span className="text-brand-blue">Still Connecting.</span> Still Growing.
             </h1>
             <p className="mt-6 text-lg sm:text-xl text-zinc-600 max-w-2xl leading-relaxed">
               Stories, podcasts, and resources from parents, autistic individuals,
@@ -22,16 +22,16 @@ export default function Hero() {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
               <Link
-                href="/register"
+                href="/blog"
                 className="w-full sm:w-auto px-8 py-3.5 bg-brand-blue hover:bg-brand-blue-dark text-white font-semibold rounded-xl transition-all shadow-lg shadow-brand-blue/25 hover:shadow-xl hover:shadow-brand-blue/30 text-center"
               >
-                Join the Community
+                Start with a Story
               </Link>
               <Link
-                href="/blog"
+                href="/register"
                 className="w-full sm:w-auto px-8 py-3.5 bg-white hover:bg-zinc-50 text-zinc-700 font-semibold rounded-xl border border-zinc-200 transition-colors text-center"
               >
-                Read Stories
+                Join the Community
               </Link>
             </div>
             <div className="mt-10 flex items-center gap-8 justify-center lg:justify-start text-sm text-zinc-500">
@@ -39,7 +39,7 @@ export default function Hero() {
                 <svg className="w-5 h-5 text-brand-green" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                3,000+ stories
+                18 years strong
               </div>
               <div className="flex items-center gap-2">
                 <svg className="w-5 h-5 text-brand-green" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
@@ -71,7 +71,6 @@ export default function Hero() {
           </div>
         </div>
       </div>
-      {/* Decorative shapes */}
       <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-96 h-96 bg-brand-blue/5 rounded-full blur-3xl" />
       <div className="absolute bottom-0 left-0 translate-y-1/4 -translate-x-1/4 w-96 h-96 bg-brand-orange/5 rounded-full blur-3xl" />
     </section>

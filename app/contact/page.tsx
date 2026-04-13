@@ -131,7 +131,7 @@ export default function ContactPage() {
           {status === "loading" ? "Sending..." : "Send Message"}
         </button>
         <p className="text-xs text-zinc-500">
-          Your information will be handled in accordance with our Privacy Policy. We may use HubSpot to manage external communications.
+          Information submitted through this form is used solely for responding to your inquiry. This form is separate from our member platform — your submission is not connected to any member account or community data. See our Privacy Policy for details.
         </p>
       </form>
     </div>
