@@ -1,32 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { getSupabase } from "@/app/lib/supabase-browser";
 
 const supabase = getSupabase();
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) {
-      setError(err.message);
-      setLoading(false);
-      return;
-    }
+    try {
+      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+      if (err) {
+        setError(err.message);
+        setLoading(false);
+        return;
+      }
 
-    router.push("/dashboard");
+      // Use window.location for a full page reload so cookies are set properly
+      window.location.href = "/dashboard";
+    } catch {
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
+    }
   };
 
   return (
