@@ -22,6 +22,10 @@ export const metadata: Metadata = {
   },
   description:
     "A community and editorial platform for parents, autistic individuals, and professionals — sharing stories, podcasts, resources, and support.",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/apple-icon.png",
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
