@@ -28,8 +28,8 @@ const footerLinks = [
     links: [
       { label: "About Autisable", href: "/about" },
       { label: "Contact Us", href: "/contact" },
-      { label: "Privacy Policy", href: "/privacy" },
-      { label: "Terms of Use", href: "/terms" },
+      { label: "Community Guidelines", href: "/community-guidelines" },
+      { label: "Accessibility", href: "/accessibility" },
     ],
   },
   {
@@ -171,12 +171,18 @@ export default function Footer() {
 
         <div className="mt-12 pt-8 border-t border-zinc-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm">
           <p>&copy; {new Date().getFullYear()} Autisable. All rights reserved.</p>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center gap-6">
             <Link href="/privacy" className="hover:text-white transition-colors">
               Privacy Policy
             </Link>
             <Link href="/terms" className="hover:text-white transition-colors">
               Terms of Use
+            </Link>
+            <Link href="/community-guidelines" className="hover:text-white transition-colors">
+              Community Guidelines
+            </Link>
+            <Link href="/accessibility" className="hover:text-white transition-colors">
+              Accessibility
             </Link>
           </div>
         </div>

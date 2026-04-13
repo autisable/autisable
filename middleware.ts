@@ -20,6 +20,8 @@ const RESERVED_ROUTES = new Set([
   "login",
   "privacy",
   "terms",
+  "community-guidelines",
+  "accessibility",
   "help",
   "search",
   "feed.xml",
