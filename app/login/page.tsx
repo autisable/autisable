@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { getSupabase } from "@/app/lib/supabase-browser";
@@ -12,6 +12,21 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  // If already logged in, redirect to dashboard
+  useEffect(() => {
+    const check = async () => {
+      if (!supabase) { setChecking(false); return; }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        window.location.href = "/dashboard";
+      } else {
+        setChecking(false);
+      }
+    };
+    void check();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,13 +41,20 @@ export default function LoginPage() {
         return;
       }
 
-      // Use window.location for a full page reload so cookies are set properly
       window.location.href = "/dashboard";
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
     }
   };
+
+  if (checking) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <div className="animate-pulse text-zinc-400">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
