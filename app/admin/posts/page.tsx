@@ -1,37 +1,75 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
 
 const supabase = getSupabase();
+
 interface Post {
   id: string;
   title: string;
   slug: string;
   category: string;
   is_published: boolean;
+  is_syndicated: boolean;
   date: string;
   author_name: string | null;
 }
 
+const POSTS_PER_PAGE = 30;
+
 export default function AdminPostsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "published" | "drafts" | "syndicated">("all");
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const loadPosts = useCallback(async (pageNum: number) => {
+    if (!supabase) return;
+    setLoading(true);
+
+    let query = supabase
+      .from("blog_posts")
+      .select("id, title, slug, category, is_published, is_syndicated, date, author_name", { count: "exact" })
+      .order("date", { ascending: false })
+      .range(pageNum * POSTS_PER_PAGE, (pageNum + 1) * POSTS_PER_PAGE - 1);
+
+    if (filter === "published") query = query.eq("is_published", true);
+    if (filter === "drafts") query = query.eq("is_published", false);
+    if (filter === "syndicated") query = query.eq("is_syndicated", true);
+    if (search) query = query.ilike("title", `%${search}%`);
+
+    const { data, count } = await query;
+    if (data) {
+      setPosts(pageNum === 0 ? data : (prev) => [...prev, ...data]);
+      setHasMore(data.length === POSTS_PER_PAGE);
+    }
+    if (count !== null) setTotalCount(count);
+    setLoading(false);
+  }, [filter, search]);
 
   useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase
-        .from("blog_posts")
-        .select("id, title, slug, category, is_published, date, author_name")
-        .order("date", { ascending: false })
-        .limit(50);
+    setPage(0);
+    setPosts([]);
+    void loadPosts(0);
+  }, [filter, search, loadPosts]);
 
-      if (data) setPosts(data);
-      setLoading(false);
-    };
-    void load();
-  }, []);
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this post permanently?")) return;
+    if (!supabase) return;
+    await supabase.from("blog_posts").delete().eq("id", id);
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleTogglePublish = async (id: string, currentStatus: boolean) => {
+    if (!supabase) return;
+    await supabase.from("blog_posts").update({ is_published: !currentStatus }).eq("id", id);
+    setPosts((prev) => prev.map((p) => p.id === id ? { ...p, is_published: !currentStatus } : p));
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50">
@@ -40,6 +78,7 @@ export default function AdminPostsPage() {
           <div className="flex items-center gap-4">
             <Link href="/admin" className="text-sm text-brand-blue hover:underline">&larr; Admin</Link>
             <h1 className="text-xl font-bold text-zinc-900">Blog Posts</h1>
+            <span className="text-sm text-zinc-400">({totalCount})</span>
           </div>
           <Link
             href="/admin/posts/new"
@@ -50,57 +89,113 @@ export default function AdminPostsPage() {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-16 bg-white rounded-xl animate-pulse" />
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+        {/* Filters + Search */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-6">
+          <div className="flex gap-2">
+            {(["all", "published", "drafts", "syndicated"] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
+                  filter === f ? "bg-brand-blue text-white" : "bg-white text-zinc-600 border border-zinc-200"
+                }`}
+              >
+                {f}
+              </button>
             ))}
           </div>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search posts..."
+            className="flex-1 sm:max-w-xs px-3 py-1.5 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue"
+          />
+        </div>
+
+        {/* Post list */}
+        {loading && posts.length === 0 ? (
+          <div className="space-y-2">{[...Array(8)].map((_, i) => <div key={i} className="h-14 bg-white rounded-lg animate-pulse" />)}</div>
+        ) : posts.length === 0 ? (
+          <div className="text-center py-16 text-zinc-500">No posts found.</div>
         ) : (
-          <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
+          <div className="bg-white rounded-xl border border-zinc-100 overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-100">
-                  <th className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3">Title</th>
-                  <th className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 hidden sm:table-cell">Category</th>
-                  <th className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 hidden md:table-cell">Author</th>
-                  <th className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3">Status</th>
-                  <th className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider px-6 py-3 hidden sm:table-cell">Date</th>
+                <tr className="border-b border-zinc-100 text-left">
+                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">Title</th>
+                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 hidden md:table-cell">Author</th>
+                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 hidden sm:table-cell">Category</th>
+                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">Status</th>
+                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 hidden sm:table-cell">Date</th>
+                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 w-32">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {posts.map((post) => (
                   <tr key={post.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <Link href={`/admin/posts/${post.id}`} className="text-sm font-medium text-zinc-900 hover:text-brand-blue">
+                    <td className="px-5 py-3">
+                      <Link href={`/admin/posts/${post.id}`} className="text-sm font-medium text-zinc-900 hover:text-brand-blue line-clamp-1">
                         {post.title}
                       </Link>
+                      {post.is_syndicated && (
+                        <span className="ml-2 text-[10px] bg-brand-orange-light text-brand-orange px-1.5 py-0.5 rounded-full font-medium">
+                          Syndicated
+                        </span>
+                      )}
                     </td>
-                    <td className="px-6 py-4 hidden sm:table-cell">
-                      <span className="text-xs text-zinc-500">{post.category || "—"}</span>
-                    </td>
-                    <td className="px-6 py-4 hidden md:table-cell">
+                    <td className="px-5 py-3 hidden md:table-cell">
                       <span className="text-xs text-zinc-500">{post.author_name || "—"}</span>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-block px-2 py-0.5 text-xs font-medium rounded-full ${
-                        post.is_published
-                          ? "bg-brand-green-light text-brand-green"
-                          : "bg-zinc-100 text-zinc-500"
-                      }`}>
-                        {post.is_published ? "Published" : "Draft"}
-                      </span>
+                    <td className="px-5 py-3 hidden sm:table-cell">
+                      <span className="text-xs text-zinc-500">{post.category || "—"}</span>
                     </td>
-                    <td className="px-6 py-4 hidden sm:table-cell">
-                      <span className="text-xs text-zinc-500">
+                    <td className="px-5 py-3">
+                      <button
+                        onClick={() => handleTogglePublish(post.id, post.is_published)}
+                        className={`px-2 py-0.5 text-xs font-medium rounded-full transition-colors cursor-pointer ${
+                          post.is_published
+                            ? "bg-brand-green-light text-brand-green hover:bg-green-200"
+                            : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
+                        }`}
+                      >
+                        {post.is_published ? "Published" : "Draft"}
+                      </button>
+                    </td>
+                    <td className="px-5 py-3 hidden sm:table-cell">
+                      <span className="text-xs text-zinc-400">
                         {post.date ? new Date(post.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"}
                       </span>
+                    </td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-2">
+                        <Link href={`/admin/posts/${post.id}`} className="text-xs text-brand-blue hover:underline">
+                          Edit
+                        </Link>
+                        <a href={`/blog/${post.slug}/`} target="_blank" className="text-xs text-zinc-400 hover:text-zinc-600">
+                          View
+                        </a>
+                        <button onClick={() => handleDelete(post.id)} className="text-xs text-brand-red hover:underline">
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {hasMore && !loading && posts.length > 0 && (
+          <div className="mt-6 text-center">
+            <button
+              onClick={() => { const next = page + 1; setPage(next); void loadPosts(next); }}
+              className="px-6 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 text-sm font-medium rounded-lg transition-colors"
+            >
+              Load More
+            </button>
           </div>
         )}
       </div>
