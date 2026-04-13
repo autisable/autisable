@@ -169,8 +169,8 @@ export default function BlogPostClient({ post, relatedPosts }: Props) {
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full bg-gradient-to-br from-brand-blue-light to-brand-orange-light">
-                      <span className="text-brand-blue/40 text-2xl font-bold">A</span>
+                    <div className="flex items-center justify-center h-full bg-gradient-to-br from-brand-blue-light to-brand-orange-light p-4">
+                      <img src="/Logo.png" alt="Autisable" className="w-3/4 max-w-[120px] opacity-40" />
                     </div>
                   )}
                 </div>

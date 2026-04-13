@@ -75,8 +75,8 @@ export default function LatestPosts() {
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full bg-gradient-to-br from-brand-blue-light to-brand-orange-light">
-                      <span className="text-brand-blue/40 text-4xl font-bold">A</span>
+                    <div className="flex items-center justify-center h-full bg-gradient-to-br from-brand-blue-light to-brand-orange-light p-6">
+                      <img src="/Logo.png" alt="Autisable" className="w-3/4 max-w-[160px] opacity-40" />
                     </div>
                   )}
                   {post.category && (
