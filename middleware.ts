@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Routes that require authentication
-const PROTECTED_PREFIXES = ["/dashboard", "/community/directory"];
+// Auth protection handled client-side to avoid cookie timing issues
+const PROTECTED_PREFIXES: string[] = [];
 
 // Routes that are known app routes (not dynamic pages)
 const RESERVED_ROUTES = new Set([
