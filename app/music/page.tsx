@@ -80,16 +80,16 @@ export default function MusicPage() {
 
       {/* Artists & Producers CTA */}
       <div className="bg-gradient-to-br from-brand-blue to-brand-blue-dark rounded-2xl p-8 sm:p-10 text-white text-center">
-        <h2 className="text-2xl font-bold mb-3">Artists & Producers</h2>
+        <h2 className="text-2xl font-bold mb-3">Artists, Producers & Industry</h2>
         <p className="text-blue-100 mb-6 max-w-md mx-auto">
-          Interested in how this music was created? Want to discuss licensing,
-          collaboration, or contributing to the project?
+          Want to know how our music is made, our approach to AI, or explore
+          licensing and collaboration opportunities?
         </p>
         <Link
-          href="/contact"
+          href="/music/about"
           className="inline-flex items-center gap-2 px-6 py-3 bg-white text-brand-blue font-semibold rounded-xl hover:bg-blue-50 transition-colors"
         >
-          Get in Touch
+          Learn How It Works
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
           </svg>
