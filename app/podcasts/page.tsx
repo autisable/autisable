@@ -64,6 +64,37 @@ export default function PodcastsPage() {
         ))}
       </div>
 
+      {/* YouTube Channel Embed */}
+      <div className="mb-16">
+        <h2 className="text-2xl font-bold text-zinc-900 mb-6">Watch on YouTube</h2>
+        <div className="rounded-2xl overflow-hidden bg-zinc-100">
+          <iframe
+            src="https://www.youtube.com/embed?listType=user_uploads&list=AutisableTV"
+            width="100%"
+            height="400"
+            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            loading="lazy"
+            className="border-0"
+            title="AutisableTV on YouTube"
+          />
+        </div>
+        <div className="mt-4 text-center">
+          <a
+            href="https://www.youtube.com/@AutisableTV"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 transition-colors"
+          >
+            <svg className="w-5 h-5 text-[#FF0000]" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            Subscribe to AutisableTV
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+            </svg>
+          </a>
+        </div>
+      </div>
+
       <div className="bg-zinc-50 rounded-2xl p-8 sm:p-12 text-center">
         <h2 className="text-2xl font-bold text-zinc-900 mb-3">Listen Everywhere</h2>
         <p className="text-zinc-600 mb-6 max-w-lg mx-auto">
