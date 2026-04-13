@@ -1,0 +1,139 @@
+"use client";
+
+import { useState } from "react";
+import type { Metadata } from "next";
+
+export default function ContactPage() {
+  const [form, setForm] = useState({ firstName: "", lastName: "", email: "", reason: "", message: "" });
+  const [honeypot, setHoneypot] = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (honeypot) return;
+    setStatus("loading");
+
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      setStatus(res.ok ? "success" : "error");
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  if (status === "success") {
+    return (
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+        <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-brand-green-light text-brand-green flex items-center justify-center">
+          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <h1 className="text-3xl font-bold text-zinc-900 mb-3">Message Sent</h1>
+        <p className="text-zinc-600">Thank you for reaching out. We&apos;ll get back to you soon.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <h1 className="text-4xl font-bold text-zinc-900 tracking-tight mb-3">Contact Us</h1>
+      <p className="text-lg text-zinc-600 mb-10">
+        Have a question, want to collaborate, or need to reach our team? We&apos;d love to hear from you.
+      </p>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="firstName" className="block text-sm font-medium text-zinc-700 mb-1">First Name</label>
+            <input
+              id="firstName"
+              type="text"
+              required
+              value={form.firstName}
+              onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+              className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+            />
+          </div>
+          <div>
+            <label htmlFor="lastName" className="block text-sm font-medium text-zinc-700 mb-1">Last Name</label>
+            <input
+              id="lastName"
+              type="text"
+              required
+              value={form.lastName}
+              onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+              className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+            />
+          </div>
+        </div>
+        <div>
+          <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1">Email</label>
+          <input
+            id="email"
+            type="email"
+            required
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+          />
+        </div>
+        <div>
+          <label htmlFor="reason" className="block text-sm font-medium text-zinc-700 mb-1">Reason</label>
+          <select
+            id="reason"
+            value={form.reason}
+            onChange={(e) => setForm({ ...form, reason: e.target.value })}
+            required
+            className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+          >
+            <option value="">Select a reason</option>
+            <option value="general">General Inquiry</option>
+            <option value="partnership">Partnership / Sponsorship</option>
+            <option value="press">Press / Media</option>
+            <option value="podcast">Podcast Guest Request</option>
+            <option value="support">Technical Support</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="message" className="block text-sm font-medium text-zinc-700 mb-1">Message</label>
+          <textarea
+            id="message"
+            required
+            rows={5}
+            value={form.message}
+            onChange={(e) => setForm({ ...form, message: e.target.value })}
+            className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-sm resize-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+          />
+        </div>
+        <input
+          type="text"
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+          className="hidden"
+          tabIndex={-1}
+          autoComplete="off"
+          aria-hidden="true"
+        />
+        {status === "error" && (
+          <p className="text-sm text-brand-red">Something went wrong. Please try again.</p>
+        )}
+        <button
+          type="submit"
+          disabled={status === "loading"}
+          className="w-full py-3 bg-brand-blue hover:bg-brand-blue-dark text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
+        >
+          {status === "loading" ? "Sending..." : "Send Message"}
+        </button>
+        <p className="text-xs text-zinc-500">
+          Your information will be handled in accordance with our Privacy Policy. We may use HubSpot to manage external communications.
+        </p>
+      </form>
+    </div>
+  );
+}

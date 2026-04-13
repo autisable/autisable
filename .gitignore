@@ -33,6 +33,15 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# WordPress database export for migration
+*.sql
+
+# media migration cache
+.media-cache/
+
+# spec doc (confidential)
+*.docx
+
 # vercel
 .vercel
 
