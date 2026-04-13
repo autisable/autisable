@@ -58,13 +58,16 @@ export default function RegisterPage() {
     }
 
     if (data.user) {
-      await supabase.from("user_profiles").insert({
-        id: data.user.id,
-        email: form.email,
-        display_name: form.displayName,
-        date_of_birth: `${dob.year}-${dob.month.padStart(2, "0")}-${dob.day.padStart(2, "0")}`,
-        status: "pending_approval",
-        role: "member",
+      // Use API route to create profile with service role (bypasses RLS)
+      await fetch("/api/auth/create-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: data.user.id,
+          email: form.email,
+          displayName: form.displayName,
+          dateOfBirth: `${dob.year}-${dob.month.padStart(2, "0")}-${dob.day.padStart(2, "0")}`,
+        }),
       });
     }
 
