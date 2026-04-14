@@ -159,7 +159,7 @@ export default function BlogPostClient({ post, relatedPosts, author }: Props) {
                 {author?.display_name || post.author_name}
               </h3>
               {author?.bio ? (
-                <p className="text-sm text-zinc-600 leading-relaxed max-w-lg mb-4">{author.bio}</p>
+                <p className="text-sm text-zinc-600 leading-relaxed max-w-lg mb-4" dangerouslySetInnerHTML={{ __html: author.bio }} />
               ) : (
                 <p className="text-sm text-zinc-600 mb-4">Contributor at Autisable.</p>
               )}
