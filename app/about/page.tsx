@@ -61,7 +61,7 @@ export default function AboutPage() {
       {/* Closing CTA */}
       <section className="bg-zinc-900 text-zinc-100 py-20 px-5 text-center">
         <h2 className="font-serif text-[clamp(1.6rem,3.5vw,2.4rem)] font-normal leading-[1.3] mb-5">
-          Sixteen years of community. Just getting started.
+          Eighteen years of community. Just getting started.
         </h2>
         <p className="text-base leading-[1.8] text-zinc-400 max-w-[540px] mx-auto mb-8">
           The website has had its gaps. The community never really did. Come be part of what comes next.

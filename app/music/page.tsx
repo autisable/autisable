@@ -65,7 +65,7 @@ const industryBenefits = [
 const songwriters = [
   { initials: "JM", name: "Joel Manzer", role: "Founder & Lead Songwriter", description: "Autism parent, community builder, and the voice behind Autisable since 2008." },
   { initials: "AS", name: "Autisable Studio", role: "AI-Assisted Production", description: "Demo production and audio rendering guided by human-approved compositions." },
-  { initials: "CS", name: "Community Stories", role: "Source Material", description: "Themes drawn from real experiences shared by the Autisable community over 16+ years." },
+  { initials: "CS", name: "Community Stories", role: "Source Material", description: "Themes drawn from real experiences shared by the Autisable community over 18+ years." },
 ];
 
 export default function MusicPage() {
@@ -250,7 +250,7 @@ export default function MusicPage() {
               </p>
               <div className="flex gap-12 mt-8 pt-6 border-t border-zinc-100">
                 <div>
-                  <span className="font-serif text-3xl font-bold text-brand-blue">16+</span>
+                  <span className="font-serif text-3xl font-bold text-brand-blue">18+</span>
                   <span className="block text-xs text-zinc-400 mt-1">Years of community stories</span>
                 </div>
                 <div>

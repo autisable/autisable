@@ -87,14 +87,14 @@ const timelineItems = [
     ],
   },
   {
-    year: "2025",
+    year: "2026",
     sub: "Partnership",
     era: "rebuild",
     tag: "New platform",
     title: "Two companies. One mission.",
     paragraphs: [
-      "In 2025, Justin Bowman — founder of VizyPlan, a visual planning platform designed to help autistic individuals manage daily routines, transitions, and independence through visual schedules — connected with Joel about what it would take to rebuild Autisable the way it deserved to be built.",
-      "It wasn't a sponsorship conversation. It was two companies that had been working in different corners of the same community recognizing they could do more together. VizyPlan brought the technical resources, development team, and operational support to make a ground-up rebuild possible. Autisable brought sixteen years of community trust, editorial voice, and direct access to the families, professionals, and autistic individuals who could help shape VizyPlan into the tool the community actually needs.",
+      "In 2026, Justin Bowman — founder of VizyPlan, a visual planning platform designed to help autistic individuals manage daily routines, transitions, and independence through visual schedules — connected with Joel about what it would take to rebuild Autisable the way it deserved to be built.",
+      "It wasn't a sponsorship conversation. It was two companies that had been working in different corners of the same community recognizing they could do more together. VizyPlan brought the technical resources, development team, and operational support to make a ground-up rebuild possible. Autisable brought eighteen years of community trust, editorial voice, and direct access to the families, professionals, and autistic individuals who could help shape VizyPlan into the tool the community actually needs.",
       "The partnership works because it goes both ways. Autisable gets the infrastructure to become the platform it was always meant to be. VizyPlan gets a real connection to the community it was built to serve — feedback, visibility, and the kind of trust that only comes from being part of something people already believe in. Neither company could build what comes next alone. Together, the mission scales.",
     ],
   },
@@ -105,7 +105,7 @@ const timelineItems = [
     tag: "New platform",
     title: "The rebuild. And what comes next.",
     paragraphs: [
-      "Autisable relaunches on a new platform built to actually support a community at scale — real membership architecture, a genuine social feed, privacy controls that mean something, and no advertising inside the member experience. The sixteen-plus years of content is still here. The community is still here. The infrastructure is finally worthy of both.",
+      "Autisable relaunches on a new platform built to actually support a community at scale — real membership architecture, a genuine social feed, privacy controls that mean something, and no advertising inside the member experience. The eighteen-plus years of content is still here. The community is still here. The infrastructure is finally worthy of both.",
       "This isn't a rebranding. The name is the same, the mission is the same, the puzzle piece still represents wholeness. What changed is the foundation — and what that makes possible going forward.",
       "If you were here on Xanga and found your way back: welcome back. If you kept following on social during the years the site was down: thank you for not giving up on it. If you're new and found us through a search result from 2010: welcome. Either way, you're in the right place.",
     ],
