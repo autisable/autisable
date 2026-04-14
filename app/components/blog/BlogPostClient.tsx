@@ -159,7 +159,15 @@ export default function BlogPostClient({ post, relatedPosts, author }: Props) {
                 {author?.display_name || post.author_name}
               </h3>
               {author?.bio ? (
-                <p className="text-sm text-zinc-600 leading-relaxed max-w-lg mb-4" dangerouslySetInnerHTML={{ __html: author.bio }} />
+                <p
+                  className="text-sm text-zinc-600 leading-relaxed max-w-lg mb-4 [&_a]:text-brand-blue [&_a]:underline [&_a]:underline-offset-2"
+                  dangerouslySetInnerHTML={{
+                    __html: author.bio.replace(
+                      /(https?:\/\/[^\s<]+)/g,
+                      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+                    ),
+                  }}
+                />
               ) : (
                 <p className="text-sm text-zinc-600 mb-4">Contributor at Autisable.</p>
               )}
