@@ -58,13 +58,21 @@ export default async function BlogPostPage({ params }: Props) {
 
   if (!post) notFound();
 
-  // Fetch author details
+  // Fetch author details — try by author_id first, fallback to author_name
   let author = null;
   if (post.author_id) {
     const { data } = await supabaseAdmin
       .from("authors")
       .select("display_name, bio, website, twitter, facebook, instagram, linkedin, youtube, avatar_url")
       .eq("id", post.author_id)
+      .single();
+    author = data;
+  }
+  if (!author && post.author_name) {
+    const { data } = await supabaseAdmin
+      .from("authors")
+      .select("display_name, bio, website, twitter, facebook, instagram, linkedin, youtube, avatar_url")
+      .eq("display_name", post.author_name)
       .single();
     author = data;
   }
