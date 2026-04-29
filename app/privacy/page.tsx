@@ -23,7 +23,8 @@ export default function PrivacyPage() {
         <h2>What We Don&apos;t Do</h2>
         <ul>
           <li>No third-party ad tracking on authenticated (member) pages</li>
-          <li>No behavioral session recording tools anywhere on the site</li>
+          <li>No third-party session recording tools (Hotjar, FullStory, etc.) anywhere on the site</li>
+          <li>First-party UX analytics (anonymous click positions, scroll depth, funnel data) are collected on public pages only — never on member dashboards, journals, or community features. This data is not linked to your account, is stored in our own database, and is used solely to improve site usability.</li>
           <li>No selling or sharing of member data with advertisers</li>
           <li>No third-party AI services process member content</li>
         </ul>

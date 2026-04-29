@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Header from "./Header";
 import Footer from "./Footer";
+import BehavioralTracker from "./BehavioralTracker";
 
 const NO_SHELL_PREFIXES = ["/admin"];
 
@@ -22,6 +23,7 @@ export default function MainLayoutShell({ children }: { children: React.ReactNod
         {children}
       </main>
       <Footer />
+      <BehavioralTracker />
     </>
   );
 }
