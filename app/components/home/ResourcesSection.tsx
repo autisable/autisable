@@ -1,6 +1,15 @@
 import Link from "next/link";
+import Image from "next/image";
 
-const resources = [
+interface Resource {
+  name: string;
+  description: string;
+  category: string;
+  color: string;
+  logo?: string;
+}
+
+const resources: Resource[] = [
   {
     name: "Bookshop.org",
     description: "Curated autism and special needs reading lists. Every purchase supports independent bookstores.",
@@ -24,6 +33,7 @@ const resources = [
     description: "Visual planning tools designed to support autistic individuals in daily routines.",
     category: "AAC & Planning",
     color: "bg-green-50 text-green-700",
+    logo: "/VizyPlan.png",
   },
 ];
 
@@ -56,9 +66,21 @@ export default function ResourcesSection() {
               key={resource.name}
               className="p-6 rounded-2xl border border-zinc-100 hover:shadow-md transition-shadow bg-white"
             >
-              <span className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${resource.color} mb-4`}>
-                {resource.category}
-              </span>
+              <div className="flex items-start justify-between mb-4 gap-3">
+                <span className={`inline-block px-3 py-1 text-xs font-medium rounded-full ${resource.color}`}>
+                  {resource.category}
+                </span>
+                {resource.logo && (
+                  <Image
+                    src={resource.logo}
+                    alt={resource.name}
+                    width={40}
+                    height={40}
+                    className="w-10 h-10 rounded-lg shrink-0 object-contain"
+                    unoptimized
+                  />
+                )}
+              </div>
               <h3 className="text-lg font-semibold text-zinc-900 mb-2">{resource.name}</h3>
               <p className="text-sm text-zinc-600 leading-relaxed">{resource.description}</p>
             </div>
