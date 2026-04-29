@@ -9,7 +9,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://autisable.com/blog/" },
 };
 
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 export default async function BlogPage() {
   const { data: posts } = await supabaseAdmin

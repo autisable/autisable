@@ -2,11 +2,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { supabaseAdmin } from "@/app/lib/supabase";
 
-export const revalidate = 60;
-
 const FEATURED_SLUG = "504-plan-vs-iep-which-one-does-your-child-need";
 
 export default async function FeaturedStory() {
+  if (!supabaseAdmin) return null;
   const { data: post } = await supabaseAdmin
     .from("blog_posts")
     .select("id, slug, title, excerpt, image, category, date, read_time, author_name")

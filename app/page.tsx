@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Hero from "./components/home/Hero";
 import FeaturedStory from "./components/home/FeaturedStory";
 import ContentPillars from "./components/home/ContentPillars";

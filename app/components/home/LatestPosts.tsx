@@ -2,9 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { supabaseAdmin } from "@/app/lib/supabase";
 
-export const revalidate = 60;
-
 export default async function LatestPosts() {
+  if (!supabaseAdmin) return null;
   const { data: posts } = await supabaseAdmin
     .from("blog_posts")
     .select("id, slug, title, excerpt, image, category, date, read_time, author_name")
