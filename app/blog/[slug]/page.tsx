@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const { data: post } = await supabaseAdmin
     .from("blog_posts")
-    .select("title, excerpt, image, meta_title, meta_description, og_image, canonical_url")
+    .select("title, excerpt, image, meta_title, meta_description, og_image, canonical_url, focus_keyword, keywords, tags")
     .eq("slug", slug)
     .eq("is_published", true)
     .single();
@@ -23,9 +23,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const image = post.og_image || post.image;
   const canonical = post.canonical_url || `https://autisable.com/blog/${slug}/`;
 
+  // Build keywords list: focus first, then additional, then tags as fallback
+  const allKeywords = [
+    post.focus_keyword,
+    ...(Array.isArray(post.keywords) ? post.keywords : []),
+    ...(Array.isArray(post.tags) ? post.tags : []),
+  ]
+    .filter(Boolean)
+    .filter((v, i, arr) => arr.indexOf(v) === i); // dedupe
+
   return {
     title,
     description,
+    keywords: allKeywords.length > 0 ? allKeywords : undefined,
     alternates: {
       canonical,
     },

@@ -28,6 +28,8 @@ export default function EditPostPage() {
         category: "",
         author_name: "",
         author_id: "",
+        focus_keyword: "",
+        keywords: [],
         meta_title: "",
         meta_description: "",
         og_image: "",

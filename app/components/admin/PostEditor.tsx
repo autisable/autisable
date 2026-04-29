@@ -88,6 +88,8 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
       meta_title: post.meta_title || null,
       meta_description: post.meta_description || null,
       og_image: post.og_image || null,
+      focus_keyword: post.focus_keyword || null,
+      keywords: Array.isArray(post.keywords) ? post.keywords : null,
       is_published: publish !== undefined ? publish : post.is_published,
       is_featured: post.is_featured || false,
       is_syndicated: post.is_syndicated || false,
@@ -193,6 +195,45 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
             {showSeo && (
               <div className="mt-4 space-y-4 p-5 bg-zinc-50 rounded-xl border border-zinc-100">
                 <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">
+                    Focus Keyphrase <span className="text-zinc-400 font-normal">— the primary search term this post should rank for</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={(post.focus_keyword as string) || ""}
+                    onChange={(e) => updateField("focus_keyword", e.target.value)}
+                    placeholder="e.g. sensory-friendly travel"
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1">
+                    Additional Keyphrases <span className="text-zinc-400 font-normal">— comma separated, related search terms</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={Array.isArray(post.keywords) ? (post.keywords as string[]).join(", ") : ""}
+                    onChange={(e) => {
+                      const arr = e.target.value
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean);
+                      updateField("keywords", arr);
+                    }}
+                    placeholder="autism vacation, sensory hotel, autism-friendly destinations"
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue"
+                  />
+                  {Array.isArray(post.keywords) && (post.keywords as string[]).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {(post.keywords as string[]).map((kw, i) => (
+                        <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-blue-light text-brand-blue text-xs rounded-full">
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div className="border-t border-zinc-200 pt-4">
                   <label className="block text-xs font-medium text-zinc-500 mb-1">Meta Title</label>
                   <input
                     type="text"
