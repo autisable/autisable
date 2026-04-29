@@ -94,6 +94,7 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
       is_featured: post.is_featured || false,
       is_syndicated: post.is_syndicated || false,
       canonical_url: post.canonical_url || null,
+      draft_status: post.draft_status || null,
     };
 
     if (isNew) {
@@ -285,9 +286,33 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
               <div className="flex items-center justify-between text-sm">
                 <span className="text-zinc-500">Status</span>
                 <span className={`font-medium ${post.is_published ? "text-brand-green" : "text-zinc-500"}`}>
-                  {post.is_published ? "Published" : "Draft"}
+                  {post.is_published
+                    ? "Published"
+                    : post.draft_status === "ready_for_scheduling"
+                    ? "Scheduled"
+                    : post.draft_status === "pending_review"
+                    ? "Pending Review"
+                    : post.draft_status === "in_progress"
+                    ? "In Progress"
+                    : "Draft"}
                 </span>
               </div>
+              {!post.is_published && (
+                <div>
+                  <label className="block text-xs text-zinc-500 mb-1">Editorial Stage</label>
+                  <select
+                    value={(post.draft_status as string) || ""}
+                    onChange={(e) => updateField("draft_status", e.target.value || null)}
+                    className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue"
+                  >
+                    <option value="">Draft (default)</option>
+                    <option value="in_progress">In Progress — being written</option>
+                    <option value="pending_review">Pending Review — needs editor sign-off</option>
+                    <option value="ready_for_scheduling">Ready for Scheduling — SEO done, ready to schedule</option>
+                  </select>
+                  <p className="text-[11px] text-zinc-400 mt-1">Tracks where the post is in your editorial workflow.</p>
+                </div>
+              )}
               <div>
                 <label className="block text-xs text-zinc-500 mb-1">Date</label>
                 <input

@@ -36,6 +36,7 @@ export default function EditPostPage() {
         is_published: false,
         is_featured: false,
         is_syndicated: false,
+        draft_status: "",
         canonical_url: "",
         date: new Date().toISOString().slice(0, 16),
       });
