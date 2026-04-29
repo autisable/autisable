@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import NewsletterSignup from "./NewsletterSignup";
 
 const footerLinks = [
@@ -94,21 +93,6 @@ export default function Footer() {
                 Get the latest stories, podcast episodes, and community updates delivered to your inbox.
               </p>
               <NewsletterSignup />
-            </div>
-            <div className="hidden lg:block flex-1" />
-            <div className="w-full lg:w-auto flex-shrink-0">
-              <div className="bg-zinc-800/50 rounded-2xl border border-zinc-700/50 p-5 text-center max-w-[280px] mx-auto">
-                <Image
-                  src="/Logo.png"
-                  alt="Autisable"
-                  width={160}
-                  height={42}
-                  className="mx-auto mb-3 brightness-0 invert opacity-80"
-                />
-                <p className="text-zinc-500 text-xs">
-                  Pieces coming together. Community forming a whole.
-                </p>
-              </div>
             </div>
           </div>
         </div>

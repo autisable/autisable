@@ -88,13 +88,14 @@ export default function ResourcesPage() {
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-start gap-4">
-                      {"logo" in resource && resource.logo && (
+                      {(resource as { logo?: string }).logo && (
                         <Image
-                          src={resource.logo}
+                          src={(resource as { logo: string }).logo}
                           alt={resource.name}
                           width={48}
                           height={48}
                           className="w-12 h-12 rounded-xl shrink-0 object-contain"
+                          unoptimized
                         />
                       )}
                       <div>
