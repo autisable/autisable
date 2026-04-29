@@ -17,10 +17,10 @@ export async function GET() {
       (post) => `
     <item>
       <title><![CDATA[${post.title}]]></title>
-      <link>${siteUrl}/blog/${post.slug}</link>
+      <link>${siteUrl}/blog/${post.slug}/</link>
       <description><![CDATA[${post.excerpt || ""}]]></description>
       <pubDate>${new Date(post.date).toUTCString()}</pubDate>
-      <guid>${siteUrl}/blog/${post.slug}</guid>
+      <guid>${siteUrl}/blog/${post.slug}/</guid>
       ${post.category ? `<category>${post.category}</category>` : ""}
       ${post.author_name ? `<dc:creator><![CDATA[${post.author_name}]]></dc:creator>` : ""}
     </item>`
