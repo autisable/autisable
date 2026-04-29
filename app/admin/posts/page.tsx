@@ -15,6 +15,7 @@ interface Post {
   is_syndicated: boolean;
   date: string;
   author_name: string | null;
+  draft_status: string | null;
 }
 
 const POSTS_PER_PAGE = 30;
@@ -22,7 +23,7 @@ const POSTS_PER_PAGE = 30;
 export default function AdminPostsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "published" | "drafts" | "syndicated">("all");
+  const [filter, setFilter] = useState<"all" | "published" | "drafts" | "scheduled" | "pending" | "in_progress" | "syndicated">("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -34,12 +35,15 @@ export default function AdminPostsPage() {
 
     let query = supabase
       .from("blog_posts")
-      .select("id, title, slug, category, is_published, is_syndicated, date, author_name", { count: "exact" })
+      .select("id, title, slug, category, is_published, is_syndicated, date, author_name, draft_status", { count: "exact" })
       .order("date", { ascending: false })
       .range(pageNum * POSTS_PER_PAGE, (pageNum + 1) * POSTS_PER_PAGE - 1);
 
     if (filter === "published") query = query.eq("is_published", true);
     if (filter === "drafts") query = query.eq("is_published", false);
+    if (filter === "scheduled") query = query.eq("draft_status", "ready_for_scheduling");
+    if (filter === "pending") query = query.eq("draft_status", "pending_review");
+    if (filter === "in_progress") query = query.eq("draft_status", "in_progress");
     if (filter === "syndicated") query = query.eq("is_syndicated", true);
     if (search) query = query.ilike("title", `%${search}%`);
 
@@ -93,7 +97,7 @@ export default function AdminPostsPage() {
         {/* Filters + Search */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex gap-2">
-            {(["all", "published", "drafts", "syndicated"] as const).map((f) => (
+            {(["all", "published", "drafts", "scheduled", "pending", "in_progress", "syndicated"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -101,7 +105,7 @@ export default function AdminPostsPage() {
                   filter === f ? "bg-brand-blue text-white" : "bg-white text-zinc-600 border border-zinc-200"
                 }`}
               >
-                {f}
+                {f.replace("_", " ")}
               </button>
             ))}
           </div>
@@ -160,7 +164,15 @@ export default function AdminPostsPage() {
                             : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
                         }`}
                       >
-                        {post.is_published ? "Published" : "Draft"}
+                        {post.is_published
+                          ? "Published"
+                          : post.draft_status === "ready_for_scheduling"
+                          ? "Scheduled"
+                          : post.draft_status === "pending_review"
+                          ? "Pending"
+                          : post.draft_status === "in_progress"
+                          ? "In Progress"
+                          : "Draft"}
                       </button>
                     </td>
                     <td className="px-5 py-3 hidden sm:table-cell">

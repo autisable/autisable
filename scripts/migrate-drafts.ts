@@ -74,7 +74,7 @@ function parseTable(sql: string, tableName: string): string[][] {
   return allRows;
 }
 
-// Map WP statuses → Supabase
+// Map WP statuses → draft_status field
 const STATUS_MAP: Record<string, string> = {
   "draft": "draft",
   "pending": "pending_review",
@@ -82,14 +82,25 @@ const STATUS_MAP: Record<string, string> = {
   "ready-for-scheduling": "ready_for_scheduling",
 };
 
+function _useStatusMap() { return STATUS_MAP; }
+
 async function main() {
   console.log("Reading SQL dump...");
   const sql = readFileSync(SQL_FILE, "utf-8");
 
-  // Need authors map
-  const { data: allAuthors } = await supabase.from("authors").select("id, display_name");
+  // Need authors map (paginated — Supabase default limit is 1,000)
+  const allAuthors: { id: string; display_name: string }[] = [];
+  let authorsFrom = 0;
+  while (true) {
+    const { data } = await supabase.from("authors").select("id, display_name").range(authorsFrom, authorsFrom + 999);
+    if (!data || data.length === 0) break;
+    allAuthors.push(...data);
+    if (data.length < 1000) break;
+    authorsFrom += 1000;
+  }
   const nameToAuthorId = new Map<string, string>();
-  if (allAuthors) allAuthors.forEach((a) => nameToAuthorId.set(a.display_name, a.id));
+  allAuthors.forEach((a) => nameToAuthorId.set(a.display_name, a.id));
+  console.log(`  Loaded ${allAuthors.length} authors`);
 
   console.log("Parsing users...");
   const users = parseTable(sql, "users");
@@ -169,6 +180,8 @@ async function main() {
 
     const finalSlug = slug && slug.length > 0 ? slug : `draft-${wpId}`;
 
+    const draftStatus = STATUS_MAP[wpStatus] || "draft";
+
     const { error } = await supabase.from("blog_posts").upsert({
       slug: finalSlug,
       title,
@@ -180,10 +193,10 @@ async function main() {
       date_modified: postModified && postModified !== "0000-00-00 00:00:00" ? postModified : null,
       read_time: estimateReadTime(content),
       author_name: authorName || null,
-      author_id: authorIdSb || null,
+      author_id: authorIdSb || null, // null when author not found — avoids FK violation
       is_published: false,
       is_syndicated: false,
-      // Use draft_status field if it exists, else just rely on is_published=false
+      draft_status: draftStatus,
     }, { onConflict: "slug" });
 
     if (error) {
