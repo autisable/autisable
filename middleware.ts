@@ -58,12 +58,20 @@ export async function middleware(request: NextRequest) {
   // ── SEO: Redirect old WordPress tag URLs ──
   const tagMatch = pathname.match(/^\/tag\/([^/]+)\/?$/);
   if (tagMatch) {
-    return NextResponse.redirect(new URL("/blog/", request.url), 301);
+    const tag = decodeURIComponent(tagMatch[1]);
+    return NextResponse.redirect(new URL(`/blog/?tag=${tag}`, request.url), 301);
   }
 
   // ── SEO: Redirect old WordPress author URLs ──
   const authorMatch = pathname.match(/^\/author\/([^/]+)\/?$/);
   if (authorMatch) {
+    const author = decodeURIComponent(authorMatch[1]);
+    return NextResponse.redirect(new URL(`/blog/?author=${author}`, request.url), 301);
+  }
+
+  // ── SEO: Redirect WordPress paginated archives ──
+  // /page/2/ → /blog/
+  if (pathname.match(/^\/page\/\d+\/?$/)) {
     return NextResponse.redirect(new URL("/blog/", request.url), 301);
   }
 

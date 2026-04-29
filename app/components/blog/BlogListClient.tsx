@@ -25,6 +25,8 @@ const POSTS_PER_PAGE = 12;
 export default function BlogListClient() {
   const searchParams = useSearchParams();
   const categoryFilter = searchParams.get("category");
+  const tagFilter = searchParams.get("tag");
+  const authorFilter = searchParams.get("author");
   const searchQuery = searchParams.get("q");
 
   const [posts, setPosts] = useState<Post[]>([]);
@@ -46,6 +48,13 @@ export default function BlogListClient() {
     if (category) {
       query = query.eq("category", category);
     }
+    if (tagFilter) {
+      query = query.contains("tags", [tagFilter]);
+    }
+    if (authorFilter) {
+      // author param could be slug-like; try to match author_name case-insensitively
+      query = query.ilike("author_name", `%${authorFilter.replace(/-/g, " ")}%`);
+    }
     if (search) {
       query = query.or(`title.ilike.%${search}%,excerpt.ilike.%${search}%`);
     }
@@ -60,7 +69,7 @@ export default function BlogListClient() {
       setHasMore(data.length === POSTS_PER_PAGE);
     }
     setLoading(false);
-  }, []);
+  }, [tagFilter, authorFilter]);
 
   useEffect(() => {
     const loadCategories = async () => {

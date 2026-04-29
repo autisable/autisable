@@ -11,7 +11,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const { data: post } = await supabaseAdmin
     .from("blog_posts")
-    .select("title, excerpt, image, meta_title, meta_description, og_image")
+    .select("title, excerpt, image, meta_title, meta_description, og_image, canonical_url")
     .eq("slug", slug)
     .eq("is_published", true)
     .single();
@@ -21,17 +21,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = post.meta_title || post.title;
   const description = post.meta_description || post.excerpt;
   const image = post.og_image || post.image;
+  const canonical = post.canonical_url || `https://autisable.com/blog/${slug}/`;
 
   return {
     title,
     description,
     alternates: {
-      canonical: `https://autisable.com/blog/${slug}/`,
+      canonical,
     },
     openGraph: {
       title,
       description,
-      url: `https://autisable.com/blog/${slug}/`,
+      url: canonical,
       type: "article",
       siteName: "Autisable",
       images: image ? [{ url: image }] : [],
