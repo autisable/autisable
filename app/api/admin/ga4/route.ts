@@ -1,0 +1,187 @@
+import { NextRequest, NextResponse } from "next/server";
+import { BetaAnalyticsDataClient } from "@google-analytics/data";
+import { requireAdmin } from "@/app/lib/adminAuth";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function getClient(): BetaAnalyticsDataClient | null {
+  const propertyId = process.env.GA4_PROPERTY_ID;
+  const credsRaw = process.env.GA4_SERVICE_ACCOUNT_JSON;
+
+  if (!propertyId || !credsRaw) return null;
+
+  let credentials: { client_email: string; private_key: string };
+  try {
+    credentials = JSON.parse(credsRaw);
+    // Vercel sometimes escapes \n in env vars
+    credentials.private_key = credentials.private_key.replace(/\\n/g, "\n");
+  } catch {
+    return null;
+  }
+
+  return new BetaAnalyticsDataClient({
+    credentials: {
+      client_email: credentials.client_email,
+      private_key: credentials.private_key,
+    },
+  });
+}
+
+function dateRange(days: number) {
+  return { startDate: `${days}daysAgo`, endDate: "today" };
+}
+
+export async function GET(req: NextRequest) {
+  const authError = await requireAdmin(req);
+  if (authError) return authError;
+
+  const propertyId = process.env.GA4_PROPERTY_ID;
+  const client = getClient();
+
+  if (!client || !propertyId) {
+    return NextResponse.json({
+      error: "GA4 not configured. Set GA4_PROPERTY_ID and GA4_SERVICE_ACCOUNT_JSON in Vercel env vars.",
+      configured: false,
+    }, { status: 200 });
+  }
+
+  const params = req.nextUrl.searchParams;
+  const metric = params.get("metric") || "overview";
+  const days = parseInt(params.get("days") || "30", 10);
+  const property = `properties/${propertyId}`;
+
+  try {
+    switch (metric) {
+      case "overview": {
+        const [response] = await client.runReport({
+          property,
+          dateRanges: [dateRange(days)],
+          metrics: [
+            { name: "totalUsers" },
+            { name: "sessions" },
+            { name: "screenPageViews" },
+            { name: "averageSessionDuration" },
+            { name: "bounceRate" },
+            { name: "engagementRate" },
+          ],
+        });
+        const row = response.rows?.[0]?.metricValues || [];
+        return NextResponse.json({
+          configured: true,
+          totalUsers: parseInt(row[0]?.value || "0", 10),
+          sessions: parseInt(row[1]?.value || "0", 10),
+          pageviews: parseInt(row[2]?.value || "0", 10),
+          avgSessionDuration: parseFloat(row[3]?.value || "0"),
+          bounceRate: parseFloat(row[4]?.value || "0"),
+          engagementRate: parseFloat(row[5]?.value || "0"),
+        });
+      }
+
+      case "topPages": {
+        const [response] = await client.runReport({
+          property,
+          dateRanges: [dateRange(days)],
+          dimensions: [{ name: "pagePath" }, { name: "pageTitle" }],
+          metrics: [{ name: "screenPageViews" }, { name: "totalUsers" }],
+          orderBys: [{ metric: { metricName: "screenPageViews" }, desc: true }],
+          limit: 25,
+        });
+        return NextResponse.json({
+          configured: true,
+          rows: (response.rows || []).map((r) => ({
+            page: r.dimensionValues?.[0]?.value || "",
+            title: r.dimensionValues?.[1]?.value || "",
+            views: parseInt(r.metricValues?.[0]?.value || "0", 10),
+            users: parseInt(r.metricValues?.[1]?.value || "0", 10),
+          })),
+        });
+      }
+
+      case "sources": {
+        const [response] = await client.runReport({
+          property,
+          dateRanges: [dateRange(days)],
+          dimensions: [{ name: "sessionSource" }, { name: "sessionMedium" }],
+          metrics: [{ name: "sessions" }],
+          orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+          limit: 20,
+        });
+        return NextResponse.json({
+          configured: true,
+          rows: (response.rows || []).map((r) => ({
+            source: r.dimensionValues?.[0]?.value || "(direct)",
+            medium: r.dimensionValues?.[1]?.value || "(none)",
+            sessions: parseInt(r.metricValues?.[0]?.value || "0", 10),
+          })),
+        });
+      }
+
+      case "devices": {
+        const [response] = await client.runReport({
+          property,
+          dateRanges: [dateRange(days)],
+          dimensions: [{ name: "deviceCategory" }],
+          metrics: [{ name: "sessions" }, { name: "totalUsers" }],
+          orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+        });
+        return NextResponse.json({
+          configured: true,
+          rows: (response.rows || []).map((r) => ({
+            device: r.dimensionValues?.[0]?.value || "",
+            sessions: parseInt(r.metricValues?.[0]?.value || "0", 10),
+            users: parseInt(r.metricValues?.[1]?.value || "0", 10),
+          })),
+        });
+      }
+
+      case "countries": {
+        const [response] = await client.runReport({
+          property,
+          dateRanges: [dateRange(days)],
+          dimensions: [{ name: "country" }],
+          metrics: [{ name: "sessions" }, { name: "totalUsers" }],
+          orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+          limit: 15,
+        });
+        return NextResponse.json({
+          configured: true,
+          rows: (response.rows || []).map((r) => ({
+            country: r.dimensionValues?.[0]?.value || "",
+            sessions: parseInt(r.metricValues?.[0]?.value || "0", 10),
+            users: parseInt(r.metricValues?.[1]?.value || "0", 10),
+          })),
+        });
+      }
+
+      case "timeline": {
+        const [response] = await client.runReport({
+          property,
+          dateRanges: [dateRange(days)],
+          dimensions: [{ name: "date" }],
+          metrics: [{ name: "totalUsers" }, { name: "sessions" }, { name: "screenPageViews" }],
+          orderBys: [{ dimension: { dimensionName: "date" } }],
+        });
+        return NextResponse.json({
+          configured: true,
+          rows: (response.rows || []).map((r) => {
+            const d = r.dimensionValues?.[0]?.value || "";
+            const formatted = d.length === 8 ? `${d.slice(4, 6)}/${d.slice(6, 8)}` : d;
+            return {
+              date: formatted,
+              users: parseInt(r.metricValues?.[0]?.value || "0", 10),
+              sessions: parseInt(r.metricValues?.[1]?.value || "0", 10),
+              pageviews: parseInt(r.metricValues?.[2]?.value || "0", 10),
+            };
+          }),
+        });
+      }
+
+      default:
+        return NextResponse.json({ error: "Unknown metric" }, { status: 400 });
+    }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "GA4 API error";
+    return NextResponse.json({ error: msg, configured: true }, { status: 500 });
+  }
+}

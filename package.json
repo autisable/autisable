@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@extractus/feed-extractor": "^7.1.7",
+    "@google-analytics/data": "^5.2.1",
     "@supabase/supabase-js": "^2.101.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tiptap/extension-image": "^3.22.3",
