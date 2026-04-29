@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Lora } from "next/font/google";
 import "./globals.css";
 import MainLayoutShell from "./components/MainLayoutShell";
+import Analytics from "./components/Analytics";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -47,6 +48,7 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${lora.variable} h-full`}>
       <body className="min-h-full flex flex-col font-sans antialiased">
         <MainLayoutShell>{children}</MainLayoutShell>
+        <Analytics />
       </body>
     </html>
   );
