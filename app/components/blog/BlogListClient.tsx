@@ -22,19 +22,26 @@ interface Post {
 
 const POSTS_PER_PAGE = 12;
 
-export default function BlogListClient() {
+interface BlogListClientProps {
+  initialPosts?: Post[];
+}
+
+export default function BlogListClient({ initialPosts = [] }: BlogListClientProps) {
   const searchParams = useSearchParams();
   const categoryFilter = searchParams.get("category");
   const tagFilter = searchParams.get("tag");
   const authorFilter = searchParams.get("author");
   const searchQuery = searchParams.get("q");
 
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
+  const hasFilter = !!(categoryFilter || tagFilter || authorFilter || searchQuery);
+
+  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(initialPosts.length === POSTS_PER_PAGE);
   const [categories, setCategories] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState(categoryFilter || "");
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const loadPosts = useCallback(async (pageNum: number, category: string, search: string | null) => {
     setLoading(true);
@@ -88,9 +95,15 @@ export default function BlogListClient() {
   }, []);
 
   useEffect(() => {
+    // Skip the first effect run if we have SSR posts and no filter applied
+    if (!hasInitialized && initialPosts.length > 0 && !hasFilter && !activeCategory) {
+      setHasInitialized(true);
+      return;
+    }
+    setHasInitialized(true);
     setPage(0);
     void loadPosts(0, activeCategory, searchQuery);
-  }, [activeCategory, searchQuery, loadPosts]);
+  }, [activeCategory, searchQuery, loadPosts, hasInitialized, initialPosts.length, hasFilter]);
 
   const loadMore = () => {
     const nextPage = page + 1;

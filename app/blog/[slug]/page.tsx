@@ -97,5 +97,79 @@ export default async function BlogPostPage({ params }: Props) {
     .order("date", { ascending: false })
     .limit(3);
 
-  return <BlogPostClient post={post} relatedPosts={related || []} author={author} />;
+  // ── JSON-LD: Article + Person + BreadcrumbList ──
+  const canonicalUrl = post.canonical_url || `https://autisable.com/blog/${slug}/`;
+
+  const articleSchema: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.meta_description || post.excerpt,
+    image: post.og_image || post.image || "https://autisable.com/Logo.png",
+    datePublished: post.date,
+    dateModified: post.date_modified || post.date,
+    mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
+    publisher: {
+      "@type": "Organization",
+      name: "Autisable",
+      logo: { "@type": "ImageObject", url: "https://autisable.com/Logo.png" },
+    },
+    ...(post.focus_keyword || (Array.isArray(post.keywords) && post.keywords.length)
+      ? {
+          keywords: [
+            post.focus_keyword,
+            ...(Array.isArray(post.keywords) ? post.keywords : []),
+            ...(Array.isArray(post.tags) ? post.tags : []),
+          ]
+            .filter(Boolean)
+            .filter((v, i, arr) => arr.indexOf(v) === i)
+            .join(", "),
+        }
+      : {}),
+    ...(post.category ? { articleSection: post.category } : {}),
+  };
+
+  if (author) {
+    const sameAs = [
+      author.website,
+      author.twitter,
+      author.facebook,
+      author.instagram,
+      author.linkedin,
+      author.youtube,
+    ].filter(Boolean);
+    articleSchema.author = {
+      "@type": "Person",
+      name: author.display_name,
+      ...(author.bio ? { description: author.bio } : {}),
+      ...(author.avatar_url ? { image: author.avatar_url } : {}),
+      ...(sameAs.length > 0 ? { sameAs } : {}),
+    };
+  } else if (post.author_name) {
+    articleSchema.author = { "@type": "Person", name: post.author_name };
+  }
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: "https://autisable.com" },
+      { "@type": "ListItem", position: 2, name: "Stories", item: "https://autisable.com/blog/" },
+      { "@type": "ListItem", position: 3, name: post.title, item: canonicalUrl },
+    ],
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      <BlogPostClient post={post} relatedPosts={related || []} author={author} />
+    </>
+  );
 }

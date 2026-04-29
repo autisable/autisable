@@ -1,39 +1,18 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { getSupabase } from "@/app/lib/supabase-browser";
+import { supabaseAdmin } from "@/app/lib/supabase";
 
-const supabase = getSupabase();
-interface Post {
-  id: string;
-  slug: string;
-  title: string;
-  excerpt: string;
-  image: string | null;
-  category: string;
-  date: string;
-  read_time: string | null;
-  author_name: string | null;
-}
+export const revalidate = 60;
 
-export default function LatestPosts() {
-  const [posts, setPosts] = useState<Post[]>([]);
+export default async function LatestPosts() {
+  const { data: posts } = await supabaseAdmin
+    .from("blog_posts")
+    .select("id, slug, title, excerpt, image, category, date, read_time, author_name")
+    .eq("is_published", true)
+    .order("date", { ascending: false })
+    .limit(6);
 
-  useEffect(() => {
-    const loadPosts = async () => {
-      const { data } = await supabase
-        .from("blog_posts")
-        .select("id, slug, title, excerpt, image, category, date, read_time, author_name")
-        .eq("is_published", true)
-        .order("date", { ascending: false })
-        .limit(6);
-
-      if (data) setPosts(data);
-    };
-    void loadPosts();
-  }, []);
+  const items = posts || [];
 
   return (
     <section className="py-20 bg-zinc-50">
@@ -58,78 +37,64 @@ export default function LatestPosts() {
           </Link>
         </div>
 
-        {posts.length > 0 ? (
+        {items.length > 0 ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {posts.map((post) => (
-              <Link
-                key={post.id}
-                href={`/blog/${post.slug}`}
-                className="group bg-white rounded-2xl overflow-hidden border border-zinc-100 hover:shadow-lg hover:border-zinc-200 transition-all"
-              >
-                <div className="relative aspect-[16/9] bg-zinc-100">
-                  {post.image ? (
-                    <Image
-                      src={post.image}
-                      alt={post.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full bg-gradient-to-br from-brand-blue-light to-brand-orange-light p-6">
-                      <img src="/Logo.png" alt="Autisable" className="w-3/4 max-w-[160px] opacity-40" />
-                    </div>
-                  )}
-                  {post.category && (
-                    <span className="absolute top-3 left-3 px-3 py-1 bg-white/90 backdrop-blur-sm text-xs font-medium text-zinc-700 rounded-full">
-                      {post.category}
-                    </span>
-                  )}
-                </div>
-                <div className="p-5">
-                  <h3 className="text-lg font-semibold text-zinc-900 group-hover:text-brand-blue transition-colors line-clamp-2">
-                    {post.title}
-                  </h3>
-                  {post.excerpt && (
-                    <p className="mt-2 text-sm text-zinc-600 line-clamp-2">
-                      {post.excerpt}
-                    </p>
-                  )}
-                  <div className="mt-4 flex items-center gap-3 text-xs text-zinc-500">
-                    {post.author_name && <span>{post.author_name}</span>}
-                    {post.author_name && post.date && <span className="w-1 h-1 rounded-full bg-zinc-300" />}
-                    {post.date && (
-                      <time dateTime={post.date}>
-                        {new Date(post.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </time>
+            {items.map((post) => (
+              <article key={post.id} className="bg-white rounded-2xl overflow-hidden border border-zinc-100 hover:shadow-lg hover:border-zinc-200 transition-all group">
+                <Link href={`/blog/${post.slug}/`} className="block">
+                  <div className="relative aspect-[16/9] bg-zinc-100">
+                    {post.image ? (
+                      <Image
+                        src={post.image}
+                        alt={post.title}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full bg-gradient-to-br from-brand-blue-light to-brand-orange-light p-6">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/Logo.png" alt="Autisable" className="w-3/4 max-w-[160px] opacity-40" />
+                      </div>
                     )}
-                    {post.read_time && (
-                      <>
-                        <span className="w-1 h-1 rounded-full bg-zinc-300" />
-                        <span>{post.read_time}</span>
-                      </>
+                    {post.category && (
+                      <span className="absolute top-3 left-3 px-3 py-1 bg-white/90 backdrop-blur-sm text-xs font-medium text-zinc-700 rounded-full">
+                        {post.category}
+                      </span>
                     )}
                   </div>
-                </div>
-              </Link>
+                  <div className="p-5">
+                    <h3 className="text-lg font-semibold text-zinc-900 group-hover:text-brand-blue transition-colors line-clamp-2">
+                      {post.title}
+                    </h3>
+                    {post.excerpt && (
+                      <p className="mt-2 text-sm text-zinc-600 line-clamp-2">{post.excerpt}</p>
+                    )}
+                    <div className="mt-4 flex items-center gap-3 text-xs text-zinc-500">
+                      {post.author_name && <span>{post.author_name}</span>}
+                      {post.author_name && post.date && <span className="w-1 h-1 rounded-full bg-zinc-300" />}
+                      {post.date && (
+                        <time dateTime={post.date}>
+                          {new Date(post.date).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </time>
+                      )}
+                      {post.read_time && (
+                        <>
+                          <span className="w-1 h-1 rounded-full bg-zinc-300" />
+                          <span>{post.read_time}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              </article>
             ))}
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl overflow-hidden border border-zinc-100 animate-pulse">
-                <div className="aspect-[16/9] bg-zinc-100" />
-                <div className="p-5 space-y-3">
-                  <div className="h-5 bg-zinc-100 rounded w-3/4" />
-                  <div className="h-4 bg-zinc-100 rounded w-full" />
-                  <div className="h-3 bg-zinc-100 rounded w-1/2" />
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className="text-center text-zinc-400">No stories yet.</p>
         )}
 
         <div className="mt-8 text-center sm:hidden">
