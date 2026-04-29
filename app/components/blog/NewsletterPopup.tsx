@@ -53,7 +53,7 @@ export default function NewsletterPopup() {
   if (!show || dismissed) return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-full max-w-sm animate-in slide-in-from-bottom-4">
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:bottom-6 sm:right-6 z-50 sm:w-full sm:max-w-sm animate-in slide-in-from-bottom-4">
       <div className="bg-white rounded-2xl shadow-2xl border border-zinc-200 p-6 relative">
         <button
           onClick={handleDismiss}
