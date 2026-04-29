@@ -65,16 +65,16 @@ async function main() {
   console.log("Reading SQL dump...");
   const sql = readFileSync(SQL_FILE, "utf-8");
 
-  // Build wpId → slug map for published posts
+  // Build wpId → slug map for ALL posts (published + drafts in our system)
   console.log("Mapping WordPress post IDs to slugs...");
   const postRows = parseTable(sql, "posts");
   const wpIdToSlug = new Map<string, string>();
   for (const row of postRows) {
-    if (cleanValue(row[7]) === "publish" && cleanValue(row[20]) === "post") {
+    if (cleanValue(row[20]) === "post") {
       wpIdToSlug.set(row[0], cleanValue(row[11]));
     }
   }
-  console.log(`  ${wpIdToSlug.size} published posts mapped`);
+  console.log(`  ${wpIdToSlug.size} posts mapped (published + drafts)`);
 
   // Parse postmeta and extract Yoast SEO fields
   console.log("Parsing Yoast SEO metadata...");
