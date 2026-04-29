@@ -198,6 +198,7 @@ export default function AdminSettingsPage() {
                 { key: "social_linkedin", label: "LinkedIn URL" },
                 { key: "social_youtube", label: "YouTube URL" },
                 { key: "social_twitter", label: "X/Twitter URL" },
+                { key: "social_patreon", label: "Patreon URL" },
               ].map((field) => (
                 <div key={field.key}>
                   <label className="block text-xs font-medium text-zinc-500 mb-1">{field.label}</label>
