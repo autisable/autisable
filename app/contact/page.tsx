@@ -33,7 +33,7 @@ export default function ContactPage() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h1 className="text-3xl font-bold text-zinc-900 mb-3">Message Sent</h1>
+        <h1 className="text-4xl font-bold text-zinc-900 tracking-tight mb-3">Message Sent</h1>
         <p className="text-zinc-600">Thank you for reaching out. We&apos;ll get back to you soon.</p>
       </div>
     );
