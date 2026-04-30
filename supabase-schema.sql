@@ -223,6 +223,41 @@ CREATE TABLE IF NOT EXISTS rss_feed_errors (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- RSS tables: admin-only via the user_profiles.role check.
+-- The cron poller writes via the service role and bypasses RLS.
+ALTER TABLE rss_feeds ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins can read rss_feeds" ON rss_feeds FOR SELECT USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+CREATE POLICY "Admins can insert rss_feeds" ON rss_feeds FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+CREATE POLICY "Admins can update rss_feeds" ON rss_feeds FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+CREATE POLICY "Admins can delete rss_feeds" ON rss_feeds FOR DELETE USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+
+ALTER TABLE rss_queue ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins can read rss_queue" ON rss_queue FOR SELECT USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+CREATE POLICY "Admins can insert rss_queue" ON rss_queue FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+CREATE POLICY "Admins can update rss_queue" ON rss_queue FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+CREATE POLICY "Admins can delete rss_queue" ON rss_queue FOR DELETE USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+
+ALTER TABLE rss_feed_errors ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins can read rss_feed_errors" ON rss_feed_errors FOR SELECT USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+
 -- Moderation Reports
 CREATE TABLE IF NOT EXISTS moderation_reports (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
