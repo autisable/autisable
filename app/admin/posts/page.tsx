@@ -39,8 +39,11 @@ export default function AdminPostsPage() {
       .order("date", { ascending: false })
       .range(pageNum * POSTS_PER_PAGE, (pageNum + 1) * POSTS_PER_PAGE - 1);
 
-    // Trashed posts are hidden everywhere except the explicit Trash tab
-    if (filter !== "trash") query = query.not("draft_status", "eq", "trash");
+    // Trashed posts are hidden everywhere except the explicit Trash tab.
+    // PostgREST quirk: not.eq treats NULL as non-matching, so it would also
+    // exclude posts where draft_status IS NULL (the vast majority — every
+    // published post). Use an explicit OR to keep nulls.
+    if (filter !== "trash") query = query.or("draft_status.is.null,draft_status.neq.trash");
 
     if (filter === "published") query = query.eq("is_published", true);
     if (filter === "drafts") query = query.eq("is_published", false).is("draft_status", null);
