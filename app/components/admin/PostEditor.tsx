@@ -360,11 +360,11 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
               {!isNew && (
                 <div className="pt-2 border-t border-zinc-100 flex justify-between">
                   <a
-                    href={`/blog/${post.slug}/`}
+                    href={post.is_published ? `/blog/${post.slug}/` : `/admin/posts/${post.id}/preview`}
                     target="_blank"
                     className="text-xs text-brand-blue hover:underline"
                   >
-                    View post &rarr;
+                    {post.is_published ? "View post" : "Preview post"} &rarr;
                   </a>
                   <button
                     onClick={handleDelete}

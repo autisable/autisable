@@ -28,6 +28,13 @@ export default function AdminPostsPage() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  const [sortColumn, setSortColumn] = useState<"date" | "title" | "author_name" | "category">("date");
+  const [sortAsc, setSortAsc] = useState(false);
+
+  const handleSort = (col: typeof sortColumn) => {
+    if (sortColumn === col) setSortAsc(!sortAsc);
+    else { setSortColumn(col); setSortAsc(col !== "date"); /* date defaults desc, others asc */ }
+  };
 
   const loadPosts = useCallback(async (pageNum: number) => {
     if (!supabase) return;
@@ -36,7 +43,7 @@ export default function AdminPostsPage() {
     let query = supabase
       .from("blog_posts")
       .select("id, title, slug, category, is_published, is_syndicated, date, author_name, draft_status", { count: "exact" })
-      .order("date", { ascending: false })
+      .order(sortColumn, { ascending: sortAsc, nullsFirst: false })
       .range(pageNum * POSTS_PER_PAGE, (pageNum + 1) * POSTS_PER_PAGE - 1);
 
     // Trashed posts are hidden everywhere except the explicit Trash tab.
@@ -64,13 +71,13 @@ export default function AdminPostsPage() {
     }
     if (count !== null) setTotalCount(count);
     setLoading(false);
-  }, [filter, search]);
+  }, [filter, search, sortColumn, sortAsc]);
 
   useEffect(() => {
     setPage(0);
     setPosts([]);
     void loadPosts(0);
-  }, [filter, search, loadPosts]);
+  }, [filter, search, sortColumn, sortAsc, loadPosts]);
 
   const handleSendToTrash = async (id: string) => {
     if (!confirm("Move this post to Trash? It can be restored later.")) return;
@@ -164,11 +171,27 @@ export default function AdminPostsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-zinc-100 text-left">
-                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">Title</th>
-                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 hidden md:table-cell">Author</th>
-                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 hidden sm:table-cell">Category</th>
+                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">
+                    <button onClick={() => handleSort("title")} className="hover:text-zinc-900 inline-flex items-center gap-1">
+                      Title{sortColumn === "title" && <span aria-hidden>{sortAsc ? "↑" : "↓"}</span>}
+                    </button>
+                  </th>
+                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 hidden md:table-cell">
+                    <button onClick={() => handleSort("author_name")} className="hover:text-zinc-900 inline-flex items-center gap-1">
+                      Author{sortColumn === "author_name" && <span aria-hidden>{sortAsc ? "↑" : "↓"}</span>}
+                    </button>
+                  </th>
+                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 hidden sm:table-cell">
+                    <button onClick={() => handleSort("category")} className="hover:text-zinc-900 inline-flex items-center gap-1">
+                      Category{sortColumn === "category" && <span aria-hidden>{sortAsc ? "↑" : "↓"}</span>}
+                    </button>
+                  </th>
                   <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">Status</th>
-                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 hidden sm:table-cell">Date</th>
+                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 hidden sm:table-cell">
+                    <button onClick={() => handleSort("date")} className="hover:text-zinc-900 inline-flex items-center gap-1">
+                      Date{sortColumn === "date" && <span aria-hidden>{sortAsc ? "↑" : "↓"}</span>}
+                    </button>
+                  </th>
                   <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 w-32">Actions</th>
                 </tr>
               </thead>
