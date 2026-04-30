@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // ── SEO: Redirect old WordPress feed URLs ──
-  if (pathname === "/feed" || pathname === "/feed/") {
+  if (pathname === "/feed" || pathname === "/feed/" || pathname === "/rss" || pathname === "/rss/") {
     return NextResponse.redirect(new URL("/feed.xml/", request.url), 301);
   }
 
