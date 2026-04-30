@@ -169,6 +169,26 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Authors (separate from user_profiles; created during WP migration via scripts/migrate-authors.ts)
+-- blog_posts.author_id and rss_feeds.author_id both reference this table.
+CREATE TABLE IF NOT EXISTS authors (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  wp_user_id TEXT,
+  display_name TEXT NOT NULL,
+  bio TEXT,
+  website TEXT,
+  twitter TEXT,
+  facebook TEXT,
+  instagram TEXT,
+  linkedin TEXT,
+  youtube TEXT,
+  avatar_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(display_name)
+);
+ALTER TABLE authors ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Authors are viewable by everyone" ON authors FOR SELECT USING (true);
+
 -- RSS Feeds
 CREATE TABLE IF NOT EXISTS rss_feeds (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -176,6 +196,7 @@ CREATE TABLE IF NOT EXISTS rss_feeds (
   url TEXT UNIQUE NOT NULL,
   is_active BOOLEAN DEFAULT TRUE,
   last_polled TIMESTAMPTZ,
+  author_id UUID REFERENCES authors(id),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

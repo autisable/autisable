@@ -12,10 +12,12 @@ interface Feed {
   url: string;
   is_active: boolean;
   last_polled: string | null;
+  author_id: string | null;
 }
 
 interface QueueItem {
   id: string;
+  feed_id: string | null;
   feed_name: string;
   title: string;
   excerpt: string;
@@ -24,13 +26,20 @@ interface QueueItem {
   status: string;
 }
 
+interface AuthorOption {
+  id: string;
+  display_name: string;
+}
+
 export default function AdminRSSPage() {
   const [tab, setTab] = useState<"queue" | "feeds">("queue");
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [authors, setAuthors] = useState<AuthorOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [newFeedUrl, setNewFeedUrl] = useState("");
   const [newFeedName, setNewFeedName] = useState("");
+  const [newFeedAuthorId, setNewFeedAuthorId] = useState("");
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
@@ -40,12 +49,14 @@ export default function AdminRSSPage() {
 
   const loadData = async () => {
     if (!supabase) return;
-    const [feedsRes, queueRes] = await Promise.all([
+    const [feedsRes, queueRes, authorsRes] = await Promise.all([
       supabase.from("rss_feeds").select("*").order("name").limit(200),
       supabase.from("rss_queue").select("*").eq("status", "pending").order("published_date", { ascending: false }).limit(50),
+      supabase.from("authors").select("id, display_name").order("display_name").limit(500),
     ]);
     if (feedsRes.data) setFeeds(feedsRes.data);
     if (queueRes.data) setQueue(queueRes.data);
+    if (authorsRes.data) setAuthors(authorsRes.data);
     setLoading(false);
   };
 
@@ -69,18 +80,34 @@ export default function AdminRSSPage() {
     if (!name) {
       try { name = new URL(newFeedUrl).hostname.replace("www.", ""); } catch { name = "New Feed"; }
     }
-    const { error } = await supabase.from("rss_feeds").insert({ url: newFeedUrl, name, is_active: true });
+    const { error } = await supabase.from("rss_feeds").insert({
+      url: newFeedUrl,
+      name,
+      is_active: true,
+      author_id: newFeedAuthorId || null,
+    });
     if (!error) {
       setNewFeedUrl("");
       setNewFeedName("");
+      setNewFeedAuthorId("");
       void loadData();
     }
     setAdding(false);
   };
 
+  const updateFeedAuthor = async (feedId: string, authorId: string) => {
+    if (!supabase) return;
+    await supabase.from("rss_feeds").update({ author_id: authorId || null }).eq("id", feedId);
+    setFeeds((prev) => prev.map((f) => f.id === feedId ? { ...f, author_id: authorId || null } : f));
+  };
+
   const approveItem = async (item: QueueItem) => {
     if (!supabase) return;
-    // Create blog post from queue item
+    const feed = feeds.find((f) => f.id === item.feed_id);
+    const author = feed?.author_id ? authors.find((a) => a.id === feed.author_id) : null;
+
+    // Posts enter the editorial pipeline as Pending Review — they do NOT auto-publish.
+    // Editors review/edit, then move through the pipeline to Scheduled → Published.
     const slug = item.title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").slice(0, 100);
     const { error } = await supabase.from("blog_posts").insert({
       title: item.title,
@@ -89,10 +116,12 @@ export default function AdminRSSPage() {
       excerpt: item.excerpt?.slice(0, 300) || "",
       category: "Bloggers",
       date: item.published_date || new Date().toISOString(),
-      is_published: true,
+      is_published: false,
+      draft_status: "pending_review",
       is_syndicated: true,
       canonical_url: item.source_url,
-      author_name: item.feed_name,
+      author_id: feed?.author_id || null,
+      author_name: author?.display_name || item.feed_name,
     });
 
     if (!error) {
@@ -169,8 +198,9 @@ export default function AdminRSSPage() {
                         <button
                           onClick={() => approveItem(item)}
                           className="px-3 py-1.5 bg-brand-green text-white text-xs font-medium rounded-lg hover:bg-green-600 transition-colors"
+                          title="Creates a blog post in Pending Review status (does not auto-publish)"
                         >
-                          Approve & Publish
+                          Approve &rarr; Pending Review
                         </button>
                         <button
                           onClick={() => declineItem(item.id)}
@@ -206,6 +236,17 @@ export default function AdminRSSPage() {
                   placeholder="https://example.com/feed/"
                   className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm"
                 />
+                <select
+                  value={newFeedAuthorId}
+                  onChange={(e) => setNewFeedAuthorId(e.target.value)}
+                  className="sm:w-56 px-3 py-2 border border-zinc-200 rounded-lg text-sm"
+                  title="Author this feed will be attributed to. Their bio, avatar, and socials show on each approved post."
+                >
+                  <option value="">Author (optional)</option>
+                  {authors.map((a) => (
+                    <option key={a.id} value={a.id}>{a.display_name}</option>
+                  ))}
+                </select>
                 <button
                   onClick={addFeed}
                   disabled={!newFeedUrl || adding}
@@ -214,13 +255,17 @@ export default function AdminRSSPage() {
                   {adding ? "Adding..." : "Add Feed"}
                 </button>
               </div>
+              <p className="mt-2 text-xs text-zinc-500">
+                Items pulled from this feed will be attributed to the selected author and enter the
+                editorial pipeline as <strong>Pending Review</strong> (not auto-published).
+              </p>
             </div>
 
             {/* Feed list */}
             <div className="space-y-2">
               {feeds.map((feed) => (
                 <div key={feed.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-zinc-100">
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${feed.is_active ? "bg-brand-green" : "bg-zinc-300"}`} />
                       <p className="text-sm font-medium text-zinc-900 truncate">{feed.name}</p>
@@ -228,6 +273,17 @@ export default function AdminRSSPage() {
                     <p className="text-xs text-zinc-400 truncate mt-0.5">{feed.url}</p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    <select
+                      value={feed.author_id || ""}
+                      onChange={(e) => updateFeedAuthor(feed.id, e.target.value)}
+                      className="text-xs px-2 py-1 border border-zinc-200 rounded-lg max-w-[10rem]"
+                      title="Author for posts approved from this feed"
+                    >
+                      <option value="">— No author —</option>
+                      {authors.map((a) => (
+                        <option key={a.id} value={a.id}>{a.display_name}</option>
+                      ))}
+                    </select>
                     {feed.last_polled && (
                       <span className="text-xs text-zinc-400">
                         Last: {new Date(feed.last_polled).toLocaleDateString("en-US", { month: "short", day: "numeric" })}

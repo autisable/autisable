@@ -1,95 +1,160 @@
-import { cookies } from "next/headers";
-import { redirect, notFound } from "next/navigation";
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
-import type { Metadata } from "next";
-import { supabaseAdmin } from "@/app/lib/supabase";
+import { getSupabase } from "@/app/lib/supabase-browser";
 import BlogPostClient from "@/app/components/blog/BlogPostClient";
 
-export const metadata: Metadata = {
-  title: "Preview — Autisable Admin",
-  robots: { index: false, follow: false },
+const supabase = getSupabase();
+
+type Post = Record<string, unknown> & {
+  id: string;
+  slug: string;
+  category: string;
+  is_published: boolean;
+  draft_status: string | null;
+  author_id?: string | null;
+  author_name?: string | null;
 };
 
-export const dynamic = "force-dynamic";
+type Author = {
+  display_name: string;
+  bio: string | null;
+  website: string | null;
+  twitter: string | null;
+  facebook: string | null;
+  instagram: string | null;
+  linkedin: string | null;
+  youtube: string | null;
+  avatar_url: string | null;
+};
 
-interface Props {
-  params: Promise<{ id: string }>;
-}
+type RelatedPost = {
+  id: string;
+  slug: string;
+  title: string;
+  image: string | null;
+  category: string;
+  date: string;
+};
 
-async function getAdminUserId(): Promise<string | null> {
-  const cookieStore = await cookies();
-  const authCookie = cookieStore
-    .getAll()
-    .find((c) => c.name.startsWith("sb-") && c.name.includes("auth-token"));
+export default function PreviewPostPage() {
+  const router = useRouter();
+  const params = useParams();
+  const postId = params.id as string;
 
-  if (!authCookie) return null;
+  const [state, setState] = useState<"checking" | "forbidden" | "loading" | "ready" | "notfound">("checking");
+  const [post, setPost] = useState<Post | null>(null);
+  const [author, setAuthor] = useState<Author | null>(null);
+  const [related, setRelated] = useState<RelatedPost[]>([]);
 
-  let accessToken: string | null = null;
-  try {
-    let raw = authCookie.value;
-    if (raw.startsWith("base64-")) {
-      raw = Buffer.from(raw.slice(7), "base64").toString();
-    }
-    const parsed = JSON.parse(raw);
-    accessToken = Array.isArray(parsed) ? parsed[0] : parsed.access_token;
-  } catch {
-    return null;
+  useEffect(() => {
+    const run = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        router.push(`/login?redirect=/admin/posts/${postId}/preview`);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || profile.role !== "admin") {
+        setState("forbidden");
+        return;
+      }
+
+      setState("loading");
+
+      const { data: postData } = await supabase
+        .from("blog_posts")
+        .select("*")
+        .eq("id", postId)
+        .single();
+
+      if (!postData) {
+        setState("notfound");
+        return;
+      }
+      const fetched = postData as Post;
+      setPost(fetched);
+
+      if (fetched.author_id) {
+        const { data } = await supabase
+          .from("authors")
+          .select("display_name, bio, website, twitter, facebook, instagram, linkedin, youtube, avatar_url")
+          .eq("id", fetched.author_id)
+          .single();
+        if (data) setAuthor(data as Author);
+      }
+      if (!author && fetched.author_name) {
+        const { data } = await supabase
+          .from("authors")
+          .select("display_name, bio, website, twitter, facebook, instagram, linkedin, youtube, avatar_url")
+          .eq("display_name", fetched.author_name)
+          .single();
+        if (data) setAuthor(data as Author);
+      }
+
+      const { data: relatedData } = await supabase
+        .from("blog_posts")
+        .select("id, slug, title, image, category, date")
+        .eq("is_published", true)
+        .eq("category", fetched.category)
+        .neq("id", fetched.id)
+        .order("date", { ascending: false })
+        .limit(3);
+      if (relatedData) setRelated(relatedData as RelatedPost[]);
+
+      setState("ready");
+    };
+    void run();
+    // author intentionally not in deps — only set once during initial fetch
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postId, router]);
+
+  if (state === "checking" || state === "loading") {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-zinc-400 animate-pulse">
+        Loading preview...
+      </div>
+    );
   }
-  if (!accessToken) return null;
 
-  const { data: { user } } = await supabaseAdmin.auth.getUser(accessToken);
-  if (!user) return null;
-
-  const { data: profile } = await supabaseAdmin
-    .from("user_profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile || profile.role !== "admin") return null;
-  return user.id;
-}
-
-export default async function PreviewPostPage({ params }: Props) {
-  const { id } = await params;
-
-  const adminId = await getAdminUserId();
-  if (!adminId) redirect(`/login?redirect=/admin/posts/${id}/preview`);
-
-  const { data: post } = await supabaseAdmin
-    .from("blog_posts")
-    .select("*")
-    .eq("id", id)
-    .single();
-
-  if (!post) notFound();
-
-  let author = null;
-  if (post.author_id) {
-    const { data } = await supabaseAdmin
-      .from("authors")
-      .select("display_name, bio, website, twitter, facebook, instagram, linkedin, youtube, avatar_url")
-      .eq("id", post.author_id)
-      .single();
-    author = data;
-  }
-  if (!author && post.author_name) {
-    const { data } = await supabaseAdmin
-      .from("authors")
-      .select("display_name, bio, website, twitter, facebook, instagram, linkedin, youtube, avatar_url")
-      .eq("display_name", post.author_name)
-      .single();
-    author = data;
+  if (state === "forbidden") {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-zinc-200 p-8 text-center">
+          <h1 className="text-xl font-bold text-zinc-900 mb-2">Admin only</h1>
+          <p className="text-sm text-zinc-600 mb-6">You need an admin account to preview unpublished posts.</p>
+          <Link href="/dashboard" className="inline-block px-4 py-2 bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-medium rounded-xl">
+            Go to dashboard
+          </Link>
+        </div>
+      </div>
+    );
   }
 
-  const { data: related } = await supabaseAdmin
-    .from("blog_posts")
-    .select("id, slug, title, image, category, date")
-    .eq("is_published", true)
-    .eq("category", post.category)
-    .neq("id", post.id)
-    .order("date", { ascending: false })
-    .limit(3);
+  if (state === "notfound" || !post) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-zinc-200 p-8 text-center">
+          <h1 className="text-xl font-bold text-zinc-900 mb-2">Post not found</h1>
+          <p className="text-sm text-zinc-600 mb-1">Post ID:</p>
+          <code className="text-xs bg-zinc-100 px-2 py-1 rounded">{postId}</code>
+          <div className="mt-6">
+            <Link href="/admin/posts" className="inline-block px-4 py-2 bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-medium rounded-xl">
+              Back to Posts
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const statusLabel = post.is_published
     ? "Published"
@@ -119,7 +184,11 @@ export default async function PreviewPostPage({ params }: Props) {
           </Link>
         </div>
       </div>
-      <BlogPostClient post={post} relatedPosts={related || []} author={author} />
+      <BlogPostClient
+        post={post as unknown as Parameters<typeof BlogPostClient>[0]["post"]}
+        relatedPosts={related}
+        author={author}
+      />
     </>
   );
 }
