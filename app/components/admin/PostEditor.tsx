@@ -40,7 +40,7 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
       .from("authors")
       .select("id, display_name")
       .order("display_name")
-      .limit(500)
+      .limit(1000)
       .then(({ data }) => {
         if (data) setAuthors(data);
       });

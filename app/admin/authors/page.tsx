@@ -32,7 +32,7 @@ export default function AdminAuthorsPage() {
       .from("authors")
       .select("id, display_name, bio, website, twitter, facebook, instagram, linkedin, youtube")
       .order("display_name")
-      .limit(200)
+      .limit(1000)
       .then(({ data }) => {
         if (data) setAuthors(data);
         setLoading(false);

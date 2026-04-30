@@ -53,7 +53,7 @@ export default function AdminRSSPage() {
     const [feedsRes, queueRes, authorsRes] = await Promise.all([
       supabase.from("rss_feeds").select("*").order("name").limit(200),
       supabase.from("rss_queue").select("*").eq("status", "pending").order("published_date", { ascending: false }).limit(50),
-      supabase.from("authors").select("id, display_name").order("display_name").limit(500),
+      supabase.from("authors").select("id, display_name").order("display_name").limit(1000),
     ]);
     if (feedsRes.data) setFeeds(feedsRes.data);
     if (queueRes.data) setQueue(queueRes.data);
