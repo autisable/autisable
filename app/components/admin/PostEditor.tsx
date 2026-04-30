@@ -94,7 +94,9 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
       is_featured: post.is_featured || false,
       is_syndicated: post.is_syndicated || false,
       canonical_url: post.canonical_url || null,
-      draft_status: post.draft_status || null,
+      // Editorial stages are pre-publish only — clear when publishing so a
+      // formerly-scheduled post doesn't keep leaking into the Scheduled filter.
+      draft_status: publish === true ? null : (post.draft_status || null),
     };
 
     if (isNew) {

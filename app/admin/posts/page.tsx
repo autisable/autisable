@@ -45,12 +45,14 @@ export default function AdminPostsPage() {
     // published post). Use an explicit OR to keep nulls.
     if (filter !== "trash") query = query.or("draft_status.is.null,draft_status.neq.trash");
 
+    // Editorial stages are pre-publish only — pin is_published=false so a published
+    // post that was previously in a stage doesn't keep showing up here.
     if (filter === "published") query = query.eq("is_published", true);
     if (filter === "drafts") query = query.eq("is_published", false).is("draft_status", null);
-    if (filter === "scheduled") query = query.eq("draft_status", "ready_for_scheduling");
-    if (filter === "pending") query = query.eq("draft_status", "pending_review");
-    if (filter === "in_progress") query = query.eq("draft_status", "in_progress");
-    if (filter === "rejected") query = query.eq("draft_status", "rejected");
+    if (filter === "scheduled") query = query.eq("is_published", false).eq("draft_status", "ready_for_scheduling");
+    if (filter === "pending") query = query.eq("is_published", false).eq("draft_status", "pending_review");
+    if (filter === "in_progress") query = query.eq("is_published", false).eq("draft_status", "in_progress");
+    if (filter === "rejected") query = query.eq("is_published", false).eq("draft_status", "rejected");
     if (filter === "trash") query = query.eq("draft_status", "trash");
     if (filter === "syndicated") query = query.eq("is_syndicated", true);
     if (search) query = query.ilike("title", `%${search}%`);
@@ -98,8 +100,15 @@ export default function AdminPostsPage() {
 
   const handleTogglePublish = async (id: string, currentStatus: boolean) => {
     if (!supabase) return;
-    await supabase.from("blog_posts").update({ is_published: !currentStatus }).eq("id", id);
-    setPosts((prev) => prev.map((p) => p.id === id ? { ...p, is_published: !currentStatus } : p));
+    const goingPublished = !currentStatus;
+    // When publishing, clear the editorial stage — it's pre-publish only.
+    const updates: { is_published: boolean; draft_status?: string | null } = { is_published: goingPublished };
+    if (goingPublished) updates.draft_status = null;
+    await supabase.from("blog_posts").update(updates).eq("id", id);
+    setPosts((prev) => prev.map((p) => p.id === id
+      ? { ...p, is_published: goingPublished, draft_status: goingPublished ? null : p.draft_status }
+      : p
+    ));
   };
 
   return (
