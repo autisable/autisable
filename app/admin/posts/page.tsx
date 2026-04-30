@@ -127,12 +127,17 @@ export default function AdminPostsPage() {
             <h1 className="text-xl font-bold text-zinc-900">Blog Posts</h1>
             <span className="text-sm text-zinc-400">({totalCount})</span>
           </div>
-          <Link
-            href="/admin/posts/new"
-            className="px-4 py-2 bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-medium rounded-xl transition-colors"
-          >
-            New Post
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link href="/admin/calendar" className="text-sm text-brand-blue hover:underline">
+              Calendar view &rarr;
+            </Link>
+            <Link
+              href="/admin/posts/new"
+              className="px-4 py-2 bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-medium rounded-xl transition-colors"
+            >
+              New Post
+            </Link>
+          </div>
         </div>
       </div>
 
