@@ -23,7 +23,7 @@ const POSTS_PER_PAGE = 30;
 export default function AdminPostsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "published" | "drafts" | "scheduled" | "pending" | "in_progress" | "syndicated">("all");
+  const [filter, setFilter] = useState<"all" | "published" | "drafts" | "scheduled" | "pending" | "in_progress" | "rejected" | "syndicated" | "trash">("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -39,11 +39,16 @@ export default function AdminPostsPage() {
       .order("date", { ascending: false })
       .range(pageNum * POSTS_PER_PAGE, (pageNum + 1) * POSTS_PER_PAGE - 1);
 
+    // Trashed posts are hidden everywhere except the explicit Trash tab
+    if (filter !== "trash") query = query.not("draft_status", "eq", "trash");
+
     if (filter === "published") query = query.eq("is_published", true);
-    if (filter === "drafts") query = query.eq("is_published", false);
+    if (filter === "drafts") query = query.eq("is_published", false).is("draft_status", null);
     if (filter === "scheduled") query = query.eq("draft_status", "ready_for_scheduling");
     if (filter === "pending") query = query.eq("draft_status", "pending_review");
     if (filter === "in_progress") query = query.eq("draft_status", "in_progress");
+    if (filter === "rejected") query = query.eq("draft_status", "rejected");
+    if (filter === "trash") query = query.eq("draft_status", "trash");
     if (filter === "syndicated") query = query.eq("is_syndicated", true);
     if (search) query = query.ilike("title", `%${search}%`);
 
@@ -62,8 +67,27 @@ export default function AdminPostsPage() {
     void loadPosts(0);
   }, [filter, search, loadPosts]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this post permanently?")) return;
+  const handleSendToTrash = async (id: string) => {
+    if (!confirm("Move this post to Trash? It can be restored later.")) return;
+    if (!supabase) return;
+    await supabase
+      .from("blog_posts")
+      .update({ draft_status: "trash", is_published: false })
+      .eq("id", id);
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handleRestore = async (id: string) => {
+    if (!supabase) return;
+    await supabase
+      .from("blog_posts")
+      .update({ draft_status: null })
+      .eq("id", id);
+    setPosts((prev) => prev.filter((p) => p.id !== id));
+  };
+
+  const handlePermaDelete = async (id: string) => {
+    if (!confirm("Delete this post FOREVER? This cannot be undone.")) return;
     if (!supabase) return;
     await supabase.from("blog_posts").delete().eq("id", id);
     setPosts((prev) => prev.filter((p) => p.id !== id));
@@ -97,7 +121,7 @@ export default function AdminPostsPage() {
         {/* Filters + Search */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="flex gap-2">
-            {(["all", "published", "drafts", "scheduled", "pending", "in_progress", "syndicated"] as const).map((f) => (
+            {(["all", "published", "drafts", "scheduled", "pending", "in_progress", "rejected", "syndicated", "trash"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -161,6 +185,10 @@ export default function AdminPostsPage() {
                         className={`px-2 py-0.5 text-xs font-medium rounded-full transition-colors cursor-pointer ${
                           post.is_published
                             ? "bg-brand-green-light text-brand-green hover:bg-green-200"
+                            : post.draft_status === "trash"
+                            ? "bg-brand-red-light text-brand-red hover:bg-red-200"
+                            : post.draft_status === "rejected"
+                            ? "bg-brand-orange-light text-brand-orange hover:bg-orange-200"
                             : "bg-zinc-100 text-zinc-500 hover:bg-zinc-200"
                         }`}
                       >
@@ -172,6 +200,10 @@ export default function AdminPostsPage() {
                           ? "Pending"
                           : post.draft_status === "in_progress"
                           ? "In Progress"
+                          : post.draft_status === "rejected"
+                          ? "Rejected"
+                          : post.draft_status === "trash"
+                          ? "Trash"
                           : "Draft"}
                       </button>
                     </td>
@@ -182,19 +214,32 @@ export default function AdminPostsPage() {
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <Link href={`/admin/posts/${post.id}`} className="text-xs text-brand-blue hover:underline">
-                          Edit
-                        </Link>
-                        <a
-                          href={post.is_published ? `/blog/${post.slug}/` : `/admin/posts/${post.id}/preview`}
-                          target="_blank"
-                          className="text-xs text-zinc-400 hover:text-zinc-600"
-                        >
-                          {post.is_published ? "View" : "Preview"}
-                        </a>
-                        <button onClick={() => handleDelete(post.id)} className="text-xs text-brand-red hover:underline">
-                          Delete
-                        </button>
+                        {filter === "trash" ? (
+                          <>
+                            <button onClick={() => handleRestore(post.id)} className="text-xs text-brand-green hover:underline">
+                              Restore
+                            </button>
+                            <button onClick={() => handlePermaDelete(post.id)} className="text-xs text-brand-red hover:underline">
+                              Delete forever
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <Link href={`/admin/posts/${post.id}`} className="text-xs text-brand-blue hover:underline">
+                              Edit
+                            </Link>
+                            <a
+                              href={post.is_published ? `/blog/${post.slug}/` : `/admin/posts/${post.id}/preview`}
+                              target="_blank"
+                              className="text-xs text-zinc-400 hover:text-zinc-600"
+                            >
+                              {post.is_published ? "View" : "Preview"}
+                            </a>
+                            <button onClick={() => handleSendToTrash(post.id)} className="text-xs text-brand-red hover:underline">
+                              Trash
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>

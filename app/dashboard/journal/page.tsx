@@ -11,6 +11,7 @@ interface JournalEntry {
   title: string;
   content: string;
   visibility: "private" | "followers" | "all_members";
+  submission_status: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -19,6 +20,14 @@ const visibilityLabels: Record<string, { label: string; color: string }> = {
   private: { label: "Private", color: "bg-zinc-100 text-zinc-600" },
   followers: { label: "Followers", color: "bg-brand-blue-light text-brand-blue" },
   all_members: { label: "All Members", color: "bg-brand-green-light text-brand-green" },
+};
+
+const submissionLabels: Record<string, { label: string; color: string }> = {
+  submitted: { label: "Submitted", color: "bg-brand-blue-light text-brand-blue" },
+  under_review: { label: "Under Review", color: "bg-brand-blue-light text-brand-blue" },
+  approved: { label: "Approved", color: "bg-brand-green-light text-brand-green" },
+  published: { label: "Published", color: "bg-brand-green-light text-brand-green" },
+  returned: { label: "Returned", color: "bg-brand-orange-light text-brand-orange" },
 };
 
 export default function JournalPage() {
@@ -33,7 +42,7 @@ export default function JournalPage() {
 
       const { data } = await supabase
         .from("journal_entries")
-        .select("id, title, content, visibility, created_at, updated_at")
+        .select("id, title, content, visibility, submission_status, created_at, updated_at")
         .eq("user_id", user.id)
         .order("updated_at", { ascending: false });
 
@@ -102,9 +111,16 @@ export default function JournalPage() {
                     {entry.content?.replace(/<[^>]*>/g, "").slice(0, 150)}
                   </p>
                 </div>
-                <span className={`shrink-0 px-3 py-1 text-xs font-medium rounded-full ${visibilityLabels[entry.visibility]?.color || "bg-zinc-100 text-zinc-600"}`}>
-                  {visibilityLabels[entry.visibility]?.label || entry.visibility}
-                </span>
+                <div className="shrink-0 flex flex-col gap-1 items-end">
+                  <span className={`px-3 py-1 text-xs font-medium rounded-full ${visibilityLabels[entry.visibility]?.color || "bg-zinc-100 text-zinc-600"}`}>
+                    {visibilityLabels[entry.visibility]?.label || entry.visibility}
+                  </span>
+                  {entry.submission_status && submissionLabels[entry.submission_status] && (
+                    <span className={`px-3 py-1 text-xs font-medium rounded-full ${submissionLabels[entry.submission_status].color}`}>
+                      {submissionLabels[entry.submission_status].label}
+                    </span>
+                  )}
+                </div>
               </div>
               <p className="mt-3 text-xs text-zinc-400">
                 {new Date(entry.updated_at).toLocaleDateString("en-US", {

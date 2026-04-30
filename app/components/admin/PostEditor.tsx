@@ -285,7 +285,15 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-zinc-500">Status</span>
-                <span className={`font-medium ${post.is_published ? "text-brand-green" : "text-zinc-500"}`}>
+                <span className={`font-medium ${
+                  post.is_published
+                    ? "text-brand-green"
+                    : post.draft_status === "trash"
+                    ? "text-brand-red"
+                    : post.draft_status === "rejected"
+                    ? "text-brand-orange"
+                    : "text-zinc-500"
+                }`}>
                   {post.is_published
                     ? "Published"
                     : post.draft_status === "ready_for_scheduling"
@@ -294,6 +302,10 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
                     ? "Pending Review"
                     : post.draft_status === "in_progress"
                     ? "In Progress"
+                    : post.draft_status === "rejected"
+                    ? "Rejected"
+                    : post.draft_status === "trash"
+                    ? "Trash"
                     : "Draft"}
                 </span>
               </div>
@@ -308,7 +320,9 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
                     <option value="">Draft (default)</option>
                     <option value="in_progress">In Progress — being written</option>
                     <option value="pending_review">Pending Review — needs editor sign-off</option>
+                    <option value="rejected">Rejected — submission declined</option>
                     <option value="ready_for_scheduling">Ready for Scheduling — SEO done, ready to schedule</option>
+                    <option value="trash">Trash — soft-deleted (can be restored)</option>
                   </select>
                   <p className="text-[11px] text-zinc-400 mt-1">Tracks where the post is in your editorial workflow.</p>
                 </div>
