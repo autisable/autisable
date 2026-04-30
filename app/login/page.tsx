@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { getSupabase } from "@/app/lib/supabase-browser";
 
 const supabase = getSupabase();
@@ -59,10 +58,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Image src="/Logo.png" alt="Autisable" width={180} height={48} className="mx-auto mb-6" />
-        </div>
-
         <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-8">
           <h1 className="text-2xl font-bold text-zinc-900 mb-6">Welcome Back</h1>
           <form onSubmit={handleSubmit} className="space-y-4">

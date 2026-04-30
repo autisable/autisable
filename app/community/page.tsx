@@ -72,19 +72,9 @@ export default function CommunityPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-zinc-900">Community</h1>
-          <p className="mt-1 text-zinc-500">A community built around real conversation.</p>
-        </div>
-        {user && (
-          <Link
-            href="/community/directory"
-            className="text-sm font-medium text-brand-blue hover:text-brand-blue-dark"
-          >
-            Member Directory
-          </Link>
-        )}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-zinc-900">Community</h1>
+        <p className="mt-1 text-zinc-500">A community built around real conversation.</p>
       </div>
 
       {!user && (

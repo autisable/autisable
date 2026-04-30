@@ -66,13 +66,10 @@ export default function AccessibilityPage() {
         <h2>Feedback</h2>
         <p>
           Accessibility is an ongoing practice, not a checkbox. If you encounter a barrier on our site, or have
-          a suggestion for improvement, we want to hear from you.
+          a suggestion for improvement, please <a href="/contact" className="text-brand-blue">contact us</a>{" "}
+          and select &ldquo;Accessibility Feedback&rdquo; as your reason. We aim to respond within five
+          business days.
         </p>
-        <ul>
-          <li>Email: <a href="mailto:accessibility@autisable.com" className="text-brand-blue">accessibility@autisable.com</a></li>
-          <li>Subject line: Accessibility Feedback</li>
-        </ul>
-        <p>We aim to respond to accessibility feedback within five business days.</p>
 
         <h2>Technical Specifications</h2>
         <p>

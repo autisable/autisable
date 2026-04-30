@@ -64,8 +64,24 @@ function makeExcerpt(content: string, maxLen = 300): string {
 }
 
 function extractFirstImage(content: string): string | null {
-  const match = content.match(/<img[^>]+src=["']([^"']+)["']/i);
-  return match ? match[1] : null;
+  // Lazy-loading plugins set src to a 1x1 base64 GIF placeholder and put the
+  // real URL in data-src / data-lazy-src / srcset. Check those first.
+  const lazyAttrs = ["data-src", "data-lazy-src", "data-original", "data-actualsrc"];
+  const tags = content.match(/<img\b[^>]*>/gi) || [];
+  for (const tag of tags) {
+    for (const attr of lazyAttrs) {
+      const m = tag.match(new RegExp(`\\b${attr}=["']([^"']+)["']`, "i"));
+      if (m && !m[1].startsWith("data:")) return m[1];
+    }
+    const srcset = tag.match(/\bsrcset=["']([^"']+)["']/i);
+    if (srcset) {
+      const first = srcset[1].split(",")[0]?.trim().split(/\s+/)[0];
+      if (first && !first.startsWith("data:")) return first;
+    }
+    const src = tag.match(/\bsrc=["']([^"']+)["']/i);
+    if (src && !src[1].startsWith("data:")) return src[1];
+  }
+  return null;
 }
 
 /**

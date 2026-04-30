@@ -245,9 +245,21 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can see own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users can update own notifications" ON notifications FOR UPDATE USING (auth.uid() = user_id);
 
--- Blog posts: published posts are public
+-- Blog posts: published posts are public; admins can do everything
 ALTER TABLE blog_posts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Published posts are viewable by everyone" ON blog_posts FOR SELECT USING (is_published = true);
+CREATE POLICY "Admins can read all posts" ON blog_posts FOR SELECT USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+CREATE POLICY "Admins can insert posts" ON blog_posts FOR INSERT WITH CHECK (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+CREATE POLICY "Admins can update posts" ON blog_posts FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+CREATE POLICY "Admins can delete posts" ON blog_posts FOR DELETE USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_blog_posts_slug ON blog_posts(slug);

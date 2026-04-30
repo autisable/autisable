@@ -97,6 +97,9 @@ export default function ContactPage() {
             <option value="press">Press / Media</option>
             <option value="podcast">Podcast Guest Request</option>
             <option value="support">Technical Support</option>
+            <option value="accessibility">Accessibility Feedback</option>
+            <option value="privacy">Privacy / Data Request</option>
+            <option value="legal">Legal / Moderation Appeal</option>
             <option value="other">Other</option>
           </select>
         </div>

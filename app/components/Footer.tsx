@@ -21,7 +21,6 @@ const footerLinks = [
     title: "Community",
     links: [
       { label: "Join", href: "/register" },
-      { label: "Member Directory", href: "/community/directory" },
       { label: "Activity Feed", href: "/community" },
       { label: "Help Center", href: "/help" },
     ],

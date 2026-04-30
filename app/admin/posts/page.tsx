@@ -185,8 +185,12 @@ export default function AdminPostsPage() {
                         <Link href={`/admin/posts/${post.id}`} className="text-xs text-brand-blue hover:underline">
                           Edit
                         </Link>
-                        <a href={`/blog/${post.slug}/`} target="_blank" className="text-xs text-zinc-400 hover:text-zinc-600">
-                          View
+                        <a
+                          href={post.is_published ? `/blog/${post.slug}/` : `/admin/posts/${post.id}/preview`}
+                          target="_blank"
+                          className="text-xs text-zinc-400 hover:text-zinc-600"
+                        >
+                          {post.is_published ? "View" : "Preview"}
                         </a>
                         <button onClick={() => handleDelete(post.id)} className="text-xs text-brand-red hover:underline">
                           Delete

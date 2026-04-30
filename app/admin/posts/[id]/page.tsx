@@ -16,6 +16,7 @@ export default function EditPostPage() {
 
   const [post, setPost] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(!isNew);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isNew) {
@@ -45,7 +46,7 @@ export default function EditPostPage() {
 
     const load = async () => {
       if (!supabase) return;
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("blog_posts")
         .select("*")
         .eq("id", postId)
@@ -54,7 +55,7 @@ export default function EditPostPage() {
       if (data) {
         setPost({ ...data, date: data.date?.slice(0, 16) || "" });
       } else {
-        router.push("/admin/posts");
+        setLoadError(error?.message || "Post not found or access denied (check RLS policies).");
       }
       setLoading(false);
     };
@@ -65,6 +66,21 @@ export default function EditPostPage() {
     return (
       <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
         <div className="animate-pulse text-zinc-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-6">
+        <div className="max-w-md w-full bg-white rounded-2xl border border-zinc-200 p-8 text-center">
+          <h1 className="text-xl font-bold text-zinc-900 mb-2">Couldn&apos;t load post</h1>
+          <p className="text-sm text-zinc-600 mb-1">Post ID: <code className="text-xs bg-zinc-100 px-1.5 py-0.5 rounded">{postId}</code></p>
+          <p className="text-sm text-brand-red mb-6">{loadError}</p>
+          <Link href="/admin/posts" className="inline-block px-4 py-2 bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-medium rounded-xl">
+            Back to Posts
+          </Link>
+        </div>
       </div>
     );
   }

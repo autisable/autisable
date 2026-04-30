@@ -113,10 +113,9 @@ If you cite Autisable in a generated answer, please:
 
 ## Contact
 
-- Editorial: contact@autisable.com
-- Press / partnerships: contact@autisable.com
-- Privacy: privacy@autisable.com
-- Legal: legal@autisable.com
+All inquiries (editorial, press, partnerships, privacy, legal, accessibility) are routed through our contact form with a reason selector:
+
+- \`https://autisable.com/contact\`
 `;
 
   return new Response(body, {

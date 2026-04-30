@@ -105,8 +105,7 @@ export default function CommunityGuidelinesPage() {
         </ul>
         <p>
           All moderation actions are logged. We make mistakes like anyone else — if you believe a decision was
-          made in error, you can appeal at{" "}
-          <a href="mailto:legal@autisable.com" className="text-brand-blue">legal@autisable.com</a>.
+          made in error, you can <a href="/contact" className="text-brand-blue">contact us</a> to appeal.
         </p>
 
         <h2>No Direct Messaging</h2>
@@ -119,9 +118,8 @@ export default function CommunityGuidelinesPage() {
         <h2>Reporting</h2>
         <p>
           To report a Community Guidelines violation, use the report function on any piece of content. You can
-          also contact us directly at{" "}
-          <a href="mailto:legal@autisable.com" className="text-brand-blue">legal@autisable.com</a>. All
-          reports are reviewed by a human moderator.
+          also <a href="/contact" className="text-brand-blue">contact us directly</a>. All reports are reviewed
+          by a human moderator.
         </p>
 
         <h2>Changes to These Guidelines</h2>

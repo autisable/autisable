@@ -40,7 +40,7 @@ export default function TermsPage() {
         <ul>
           <li>Provide accurate, current, and complete registration information</li>
           <li>Maintain the security of your password and account credentials</li>
-          <li>Notify us immediately of any unauthorized account access at <a href="mailto:legal@autisable.com" className="text-brand-blue">legal@autisable.com</a></li>
+          <li>Notify us immediately of any unauthorized account access via our <a href="/contact" className="text-brand-blue">contact form</a></li>
           <li>Take responsibility for all activity that occurs under your account</li>
         </ul>
 
@@ -67,8 +67,8 @@ export default function TermsPage() {
         <p>
           When you submit content for editorial consideration (blog posts, featured stories), you grant us the
           right to edit for clarity, length, and style. You may revoke this permission before publication. Once
-          content is published, it cannot be unpublished by the member, but removal may be requested by
-          contacting us at <a href="mailto:legal@autisable.com" className="text-brand-blue">legal@autisable.com</a>.
+          content is published, it cannot be unpublished by the member, but removal may be requested by{" "}
+          <a href="/contact" className="text-brand-blue">contacting us</a>.
         </p>
 
         <h2>Medical Disclaimer</h2>
@@ -107,8 +107,8 @@ export default function TermsPage() {
         </p>
         <p>
           Community members may flag content for review. All flagged content is reviewed by a human moderator
-          before action is taken. If you believe a moderation decision was made in error, you may appeal by
-          contacting <a href="mailto:legal@autisable.com" className="text-brand-blue">legal@autisable.com</a>.
+          before action is taken. If you believe a moderation decision was made in error, you may{" "}
+          <a href="/contact" className="text-brand-blue">contact us</a> to appeal.
         </p>
 
         <h2>Sponsored Content and Advertising</h2>
@@ -159,8 +159,8 @@ export default function TermsPage() {
 
         <h2>Contact</h2>
         <p>
-          Questions about these Terms? Contact us at{" "}
-          <a href="mailto:legal@autisable.com" className="text-brand-blue">legal@autisable.com</a>.
+          Questions about these Terms?{" "}
+          <a href="/contact" className="text-brand-blue">Contact us</a>.
         </p>
       </div>
     </div>

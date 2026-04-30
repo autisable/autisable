@@ -76,9 +76,9 @@ export default function PrivacyPage() {
           in compliance with the Children&apos;s Online Privacy Protection Act (COPPA).
         </p>
         <p>
-          If you believe a child under 13 has created an account without parental consent, please contact us
-          at <a href="mailto:privacy@autisable.com" className="text-brand-blue">privacy@autisable.com</a> and
-          we will promptly remove that account and its associated data.
+          If you believe a child under 13 has created an account without parental consent, please{" "}
+          <a href="/contact" className="text-brand-blue">contact us</a> and we will promptly remove that
+          account and its associated data.
         </p>
 
         <h2>Data Retention</h2>
@@ -108,8 +108,7 @@ export default function PrivacyPage() {
           <li><strong>Opt-out:</strong> Unsubscribe from marketing communications at any time</li>
         </ul>
         <p>
-          To exercise any of these rights, contact us at{" "}
-          <a href="mailto:privacy@autisable.com" className="text-brand-blue">privacy@autisable.com</a> or
+          To exercise any of these rights, <a href="/contact" className="text-brand-blue">contact us</a> or
           manage your preferences directly in Account Settings.
         </p>
 
@@ -126,8 +125,7 @@ export default function PrivacyPage() {
           We use industry-standard security measures including encrypted data transmission (HTTPS/TLS), secure
           authentication, and encrypted database storage via Supabase. No method of internet transmission is
           completely secure, and we cannot guarantee absolute security. If you believe your account has been
-          compromised, contact us immediately at{" "}
-          <a href="mailto:privacy@autisable.com" className="text-brand-blue">privacy@autisable.com</a>.
+          compromised, please <a href="/contact" className="text-brand-blue">contact us</a> immediately.
         </p>
 
         <h2>Governing Law</h2>
@@ -144,8 +142,8 @@ export default function PrivacyPage() {
 
         <h2>Contact</h2>
         <p>
-          Questions about your privacy? Contact us at{" "}
-          <a href="mailto:privacy@autisable.com" className="text-brand-blue">privacy@autisable.com</a>.
+          Questions about your privacy?{" "}
+          <a href="/contact" className="text-brand-blue">Contact us</a>.
         </p>
       </div>
     </div>
