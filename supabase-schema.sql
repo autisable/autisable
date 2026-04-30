@@ -52,19 +52,23 @@ CREATE TABLE IF NOT EXISTS blog_posts (
   excerpt TEXT,
   image TEXT,
   category TEXT,
+  tags TEXT[], -- Free-form tags (comma-separated in editor); used for /blog/?tag=… filtering and SEO keywords fallback. Added by scripts/migrate-tags.ts.
   date TIMESTAMPTZ DEFAULT NOW(),
   date_modified TIMESTAMPTZ,
   read_time TEXT,
   author_name TEXT,
-  author_id UUID REFERENCES user_profiles(id),
+  author_id UUID REFERENCES authors(id), -- production references authors(id), not user_profiles(id)
   meta_title TEXT,
   meta_description TEXT,
   og_image TEXT,
+  focus_keyword TEXT, -- Yoast-style focus keyphrase, added by scripts/migrate-yoast-keywords.ts
+  keywords TEXT[],    -- Additional keyphrases (Yoast premium parity)
   is_published BOOLEAN DEFAULT FALSE,
   is_featured BOOLEAN DEFAULT FALSE,
   featured_position INT,
   is_syndicated BOOLEAN DEFAULT FALSE,
   canonical_url TEXT,
+  draft_status TEXT, -- in_progress | pending_review | ready_for_scheduling | rejected | trash | NULL
   deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );

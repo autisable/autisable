@@ -31,6 +31,7 @@ export default function EditPostPage() {
         author_id: "",
         focus_keyword: "",
         keywords: [],
+        tags: [],
         meta_title: "",
         meta_description: "",
         og_image: "",

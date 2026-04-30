@@ -90,6 +90,7 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
       og_image: post.og_image || null,
       focus_keyword: post.focus_keyword || null,
       keywords: Array.isArray(post.keywords) ? post.keywords : null,
+      tags: Array.isArray(post.tags) ? post.tags : null,
       is_published: publish !== undefined ? publish : post.is_published,
       is_featured: post.is_featured || false,
       is_syndicated: post.is_syndicated || false,
@@ -424,6 +425,36 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
               placeholder="Or type a new category..."
               className="w-full mt-2 px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue"
             />
+          </div>
+
+          {/* Tags */}
+          <div className="bg-white rounded-xl border border-zinc-200 p-5">
+            <h3 className="text-sm font-semibold text-zinc-900 mb-3">Tags</h3>
+            <input
+              type="text"
+              value={Array.isArray(post.tags) ? (post.tags as string[]).join(", ") : ""}
+              onChange={(e) => {
+                const arr = e.target.value
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+                updateField("tags", arr);
+              }}
+              placeholder="iep, sensory, advocacy"
+              className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue"
+            />
+            {Array.isArray(post.tags) && (post.tags as string[]).length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {(post.tags as string[]).map((t, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-zinc-100 text-zinc-600 text-xs rounded-full">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            )}
+            <p className="mt-2 text-[11px] text-zinc-400">
+              Comma-separated. Used for /blog/?tag=… filtering and as fallback SEO keywords.
+            </p>
           </div>
 
           {/* Author */}
