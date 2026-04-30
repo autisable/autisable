@@ -41,6 +41,7 @@ export default function AdminRSSPage() {
   const [newFeedName, setNewFeedName] = useState("");
   const [newFeedAuthorId, setNewFeedAuthorId] = useState("");
   const [adding, setAdding] = useState(false);
+  const [feedError, setFeedError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -74,6 +75,7 @@ export default function AdminRSSPage() {
   };
 
   const addFeed = async () => {
+    setFeedError(null);
     if (!newFeedUrl || !supabase) return;
     setAdding(true);
     let name = newFeedName;
@@ -86,7 +88,10 @@ export default function AdminRSSPage() {
       is_active: true,
       author_id: newFeedAuthorId || null,
     });
-    if (!error) {
+    if (error) {
+      setFeedError(error.message || "Couldn't add feed (check console for details)");
+      console.error("rss_feeds insert failed:", error);
+    } else {
       setNewFeedUrl("");
       setNewFeedName("");
       setNewFeedAuthorId("");
@@ -259,6 +264,11 @@ export default function AdminRSSPage() {
                 Items pulled from this feed will be attributed to the selected author and enter the
                 editorial pipeline as <strong>Pending Review</strong> (not auto-published).
               </p>
+              {feedError && (
+                <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-brand-red">
+                  <strong>Couldn&apos;t add feed:</strong> {feedError}
+                </div>
+              )}
             </div>
 
             {/* Feed list */}
