@@ -51,7 +51,9 @@ export async function POST(req: NextRequest) {
     try {
       const resend = new Resend(resendKey);
       const { error: sendError } = await resend.emails.send({
-        from: "Autisable <noreply@autisable.com>",
+        // From must use the subdomain Resend verified (`send.autisable.com`),
+        // not the apex `autisable.com`. The apex isn't verified in Resend.
+        from: "Autisable <noreply@send.autisable.com>",
         to: process.env.CONTACT_EMAIL || "joel@autisable.com",
         replyTo: email,
         subject: `[Autisable Contact] ${reason || "General"} — ${firstName} ${lastName}`,
