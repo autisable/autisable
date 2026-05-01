@@ -51,9 +51,11 @@ export async function POST(req: NextRequest) {
     try {
       const resend = new Resend(resendKey);
       const { error: sendError } = await resend.emails.send({
-        // From must use the subdomain Resend verified (`send.autisable.com`),
-        // not the apex `autisable.com`. The apex isn't verified in Resend.
-        from: "Autisable <noreply@send.autisable.com>",
+        // Resend verified the apex `autisable.com`. The `send.*` DNS records
+        // (MX/SPF) are Resend's auxiliary infrastructure for bounce reports
+        // and SPF chaining — they don't make `send.autisable.com` itself
+        // sendable. Use the verified apex.
+        from: "Autisable <noreply@autisable.com>",
         to: process.env.CONTACT_EMAIL || "joel@autisable.com",
         replyTo: email,
         subject: `[Autisable Contact] ${reason || "General"} — ${firstName} ${lastName}`,
