@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { adminFetch } from "@/app/lib/adminFetch";
 
 interface Overview {
   totalUsers: number;
@@ -39,7 +40,7 @@ export default function GA4AnalyticsPage() {
     const url = new URL("/api/admin/ga4", window.location.origin);
     url.searchParams.set("metric", metric);
     url.searchParams.set("days", String(days));
-    const res = await fetch(url.toString());
+    const res = await adminFetch(url.toString());
     const data = await res.json();
     if (data.configured === false) {
       setNotConfigured(true);

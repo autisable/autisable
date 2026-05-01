@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { adminFetch } from "@/app/lib/adminFetch";
 
 interface Overview {
   sessions: number;
@@ -53,7 +54,7 @@ export default function BehavioralAnalyticsPage() {
       url.searchParams.set("metric", metric);
       url.searchParams.set("days", String(days));
       Object.entries(extra).forEach(([k, v]) => url.searchParams.set(k, v));
-      const res = await fetch(url.toString());
+      const res = await adminFetch(url.toString());
       if (!res.ok) return null;
       return await res.json();
     },
@@ -92,7 +93,7 @@ export default function BehavioralAnalyticsPage() {
         const url = new URL("/api/admin/heatmap", window.location.origin);
         url.searchParams.set("page", heatmapPage);
         url.searchParams.set("days", String(days));
-        const res = await fetch(url.toString());
+        const res = await adminFetch(url.toString());
         if (res.ok) {
           const data = await res.json();
           setHeatmapPoints(data.data || []);

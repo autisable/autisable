@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { adminFetch } from "@/app/lib/adminFetch";
 
 interface Summary {
   total: number;
@@ -46,7 +47,7 @@ export default function SeoReadinessPage() {
   const [siteChecks, setSiteChecks] = useState<{ label: string; ok: boolean; url: string }[]>([]);
 
   useEffect(() => {
-    fetch("/api/admin/seo-audit")
+    adminFetch("/api/admin/seo-audit")
       .then((r) => r.json())
       .then((data) => {
         if (!data.error) setSummary(data);
@@ -69,7 +70,7 @@ export default function SeoReadinessPage() {
   const loadIssue = useCallback(async (issue: string) => {
     setActiveIssue(issue);
     setLoadingList(true);
-    const res = await fetch(`/api/admin/seo-audit?issue=${issue}`);
+    const res = await adminFetch(`/api/admin/seo-audit?issue=${issue}`);
     const data = await res.json();
     if (data.data) setPosts(data.data);
     setLoadingList(false);
