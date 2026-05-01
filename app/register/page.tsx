@@ -77,6 +77,22 @@ export default function RegisterPage() {
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
+        <div className="mb-6 p-4 bg-brand-blue-light/40 border border-brand-blue/20 rounded-xl">
+          <div className="flex items-start gap-3">
+            <svg className="w-5 h-5 text-brand-blue mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+            </svg>
+            <div className="text-sm text-zinc-700 leading-relaxed">
+              <p className="font-semibold text-zinc-900 mb-1">Membership area is in progress</p>
+              <p>
+                We&apos;re still getting the community area ready. If you&apos;d like to join, add your name
+                below and we&apos;ll notify you the moment it&apos;s open. <strong>If you&apos;re already
+                a member</strong> from the previous site, you&apos;ll get a notification by email when
+                we&apos;re ready for you.
+              </p>
+            </div>
+          </div>
+        </div>
         {step === "dob" && (
           <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-8">
             <h1 className="text-2xl font-bold text-zinc-900 mb-2">Join Autisable</h1>
