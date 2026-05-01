@@ -5,19 +5,21 @@ import type { Metadata } from "next";
 
 export default function ContactPage() {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", reason: "", message: "" });
-  const [honeypot, setHoneypot] = useState("");
+  // Honeypot field — humans don't see it (CSS-hidden), bots fill it because the
+  // name 'company' looks legitimate. Server treats any non-empty value as bot
+  // traffic and silently succeeds without saving or emailing.
+  const [company, setCompany] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (honeypot) return;
     setStatus("loading");
 
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, company }),
       });
       setStatus(res.ok ? "success" : "error");
     } catch {
@@ -114,15 +116,21 @@ export default function ContactPage() {
             className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl text-sm resize-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
           />
         </div>
-        <input
-          type="text"
-          value={honeypot}
-          onChange={(e) => setHoneypot(e.target.value)}
-          className="hidden"
-          tabIndex={-1}
-          autoComplete="off"
-          aria-hidden="true"
-        />
+        {/* Honeypot: hidden from humans (off-screen), visible+autofillable for bots.
+            "display: none" can be skipped by some bots; offscreen positioning is
+            more reliable since they fill anything that looks like a real field. */}
+        <div style={{ position: "absolute", left: "-10000px", top: "auto", width: 1, height: 1, overflow: "hidden" }} aria-hidden="true">
+          <label htmlFor="company">Company (leave blank)</label>
+          <input
+            id="company"
+            name="company"
+            type="text"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            tabIndex={-1}
+            autoComplete="off"
+          />
+        </div>
         {status === "error" && (
           <p className="text-sm text-brand-red">Something went wrong. Please try again.</p>
         )}
