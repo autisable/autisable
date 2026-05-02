@@ -72,9 +72,14 @@ CREATE TABLE IF NOT EXISTS blog_posts (
   canonical_url TEXT,
   draft_status TEXT, -- in_progress | pending_review | ready_for_scheduling | rejected | trash | NULL
   comments_enabled BOOLEAN DEFAULT TRUE, -- editor toggle: hide comments section on a per-post basis
+  submitted_by_user_id UUID REFERENCES auth.users(id), -- M6: who originally submitted this for review (member-submitted journals); used to email approve/reject/published notifications back to them
+  rejection_reason TEXT, -- M6: editor-supplied reason when draft_status flips to rejected; included in rejection email
   deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+-- M6: also add as ALTERs so existing deployments pick them up without recreating the table
+ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS submitted_by_user_id UUID REFERENCES auth.users(id);
+ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
 
 -- Podcast Episodes
 CREATE TABLE IF NOT EXISTS podcast_episodes (

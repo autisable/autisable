@@ -155,7 +155,14 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
       // Editorial stages are pre-publish only — clear when publishing so a
       // formerly-scheduled post doesn't keep leaking into the Scheduled filter.
       draft_status: publish === true ? null : (post.draft_status || null),
+      rejection_reason: post.draft_status === "rejected" ? (post.rejection_reason || null) : null,
     };
+
+    // Capture pre-save editorial state so we can detect the transitions that
+    // trigger M6 notification emails. Reading the in-memory `post` here is
+    // accurate because we haven't applied `payload` to it yet.
+    const prevDraftStatus = (post.draft_status as string | null) || null;
+    const prevIsPublished = !!post.is_published;
 
     if (isNew) {
       const { data, error } = await supabase
@@ -180,6 +187,29 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
       } else {
         setSaved(true);
         setPost((prev) => ({ ...prev, ...payload, slug }));
+
+        // M6: detect editorial transitions and fire notification emails.
+        // Fire-and-forget — never block the save UI on email delivery.
+        const newDraftStatus = payload.draft_status;
+        const newIsPublished = !!payload.is_published;
+
+        const justApproved =
+          prevDraftStatus !== "ready_for_scheduling" && newDraftStatus === "ready_for_scheduling";
+        const justRejected =
+          prevDraftStatus !== "rejected" && newDraftStatus === "rejected";
+        const justPublished = !prevIsPublished && newIsPublished;
+
+        const notify = (action: "approved" | "rejected" | "published", reason?: string | null) => {
+          void fetch("/api/notifications/editorial-decision", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ postId: post.id, action, reason: reason || null }),
+          }).catch((e) => console.warn("[editorial-decision] email failed", e));
+        };
+
+        if (justPublished) notify("published");
+        else if (justApproved) notify("approved");
+        else if (justRejected) notify("rejected", (payload.rejection_reason as string | null) || null);
       }
     }
     setSaving(false);
@@ -421,6 +451,23 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
                     <option value="trash">Trash — soft-deleted (can be restored)</option>
                   </select>
                   <p className="text-[11px] text-zinc-400 mt-1">Tracks where the post is in your editorial workflow.</p>
+                  {post.draft_status === "rejected" && (
+                    <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-lg">
+                      <label className="block text-xs font-medium text-red-700 mb-1">
+                        Rejection note <span className="font-normal text-red-500">— sent to the submitter in the rejection email</span>
+                      </label>
+                      <textarea
+                        value={(post.rejection_reason as string) || ""}
+                        onChange={(e) => updateField("rejection_reason", e.target.value)}
+                        rows={3}
+                        placeholder="Brief, kind explanation of why this can't be published as-is. They'll see this verbatim."
+                        className="w-full px-3 py-2 border border-red-200 rounded-lg text-sm resize-none focus:ring-2 focus:ring-red-400 focus:border-transparent bg-white"
+                      />
+                      <p className="text-[11px] text-red-500 mt-1">
+                        Optional but strongly recommended. Saved when you click Save Draft.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
               <div>

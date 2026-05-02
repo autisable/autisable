@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { adminFetch as fetchWithAuth } from "@/app/lib/adminFetch";
+import CropModal from "./CropModal";
 
 interface Props {
   kind: "avatar" | "cover";
@@ -15,21 +16,48 @@ export default function ImageUpload({ kind, currentUrl, onUploaded, targetUserId
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Holds an object URL while the crop modal is open. Revoked on close so we
+  // don't leak memory if the user picks several images in a row.
+  const [cropSrc, setCropSrc] = useState<string | null>(null);
 
   const isAvatar = kind === "avatar";
-  const recommendedSize = isAvatar ? "400 × 400 (square)" : "1200 × 300 (banner)";
+  const recommendedSize = isAvatar ? "400 × 400 (square)" : "1200 × 400 (banner)";
+  const aspect = isAvatar ? 1 : 3;
+  const shape: "round" | "rect" = isAvatar ? "round" : "rect";
+
+  // Cleanup any leftover object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (cropSrc) URL.revokeObjectURL(cropSrc);
+    };
+  }, [cropSrc]);
 
   const handlePick = () => inputRef.current?.click();
 
-  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Step 1: user picks a file → we open the crop modal with a local object URL.
+  // No network call yet.
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setError(null);
+    const objectUrl = URL.createObjectURL(file);
+    setCropSrc(objectUrl);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  // Step 2: user confirms the crop → upload the cropped blob to the existing endpoint.
+  const handleCropped = async (blob: Blob) => {
+    if (cropSrc) {
+      URL.revokeObjectURL(cropSrc);
+    }
+    setCropSrc(null);
     setUploading(true);
 
     const fd = new FormData();
-    fd.append("file", file);
+    // Always upload as JPEG — alpha doesn't help for avatars/covers and JPEG
+    // gives much smaller files than PNG at equivalent quality.
+    const filename = `${kind}-${Date.now()}.jpg`;
+    fd.append("file", new File([blob], filename, { type: "image/jpeg" }));
     fd.append("kind", kind);
 
     const url = targetUserId
@@ -45,9 +73,12 @@ export default function ImageUpload({ kind, currentUrl, onUploaded, targetUserId
       setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploading(false);
-      // Clear the input so picking the same file twice still triggers
-      if (inputRef.current) inputRef.current.value = "";
     }
+  };
+
+  const handleCancel = () => {
+    if (cropSrc) URL.revokeObjectURL(cropSrc);
+    setCropSrc(null);
   };
 
   return (
@@ -90,6 +121,17 @@ export default function ImageUpload({ kind, currentUrl, onUploaded, targetUserId
           {error && <p className="mt-1 text-xs text-brand-red">{error}</p>}
         </div>
       </div>
+
+      {cropSrc && (
+        <CropModal
+          src={cropSrc}
+          aspect={aspect}
+          shape={shape}
+          outputType="image/jpeg"
+          onCancel={handleCancel}
+          onCropped={handleCropped}
+        />
+      )}
     </div>
   );
 }

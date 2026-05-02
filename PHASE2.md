@@ -70,11 +70,11 @@ Small, low-risk, additive items. Most don't depend on the larger feed/profile wo
 | # | Item | Status | Notes |
 |---|---|---|---|
 | M1 | Featured image + OG auto-gen at 1200×630 | ✅ | `/api/og/[slug]` route uses `next/og` ImageResponse. Editor's `og_image` upload still wins (overrides auto-gen). Layout: featured image left half + title/category/author/brand on right; falls back to text-only with brand stripe when no featured image. Cached 1h at edge. Wired into blog post `generateMetadata` + JSON-LD article schema. |
-| M2 | Profile image + cover photo upload (user + admin can act on behalf) | ⬜ | Supabase Storage, crop UI. |
+| M2 | Profile image + cover photo upload (user + admin can act on behalf) | ✅ | Storage upload via `/api/upload/profile-image` (service-role gated, Bearer-JWT auth, admin override via `?targetUserId=`). New `CropModal` opens after file pick — react-image-crop with 1:1 round mask for avatars and 3:1 banner for covers. Crops to natural-resolution canvas, exports JPEG at 0.92 quality. Replaces the prior "raw upload, hope-it-fits" flow. |
 | M3 | Self-ID tags on profile (3 colored chips, mutually exclusive Neuro pairs) | ⬜ | Multi-select, optional, editable post-registration. |
 | M4 | 5-role system + migrate Author → Member | ⬜ | Schema + admin UI for role assignment. |
 | M5 | Author leaving / removal request flow via contact form | ⬜ | Adds reason option + admin tool. |
-| M6 | Email notifications: approve/reject (with reason) + live link | ⬜ | Add `submitted_by_user_id` + `rejection_reason` columns. Detect state changes in PostEditor save. Send via Resend. (Acknowledgement is already done in Q6.) |
+| M6 | Email notifications: approve/reject (with reason) + live link | ✅ | Schema: `submitted_by_user_id` + `rejection_reason` added to blog_posts (SQL migration needed). Journal submit flow now stamps `submitted_by_user_id`. PostEditor captures pre-save editorial state and detects three transitions: pending→ready_for_scheduling = "approved" email; any→rejected = "rejected" email (with required rejection note inline in editor); is_published false→true = "your post is live" email with link. All routed through `/api/notifications/editorial-decision` (single endpoint, action param). Admin-created posts (no submitter) silently no-op. |
 
 ---
 
