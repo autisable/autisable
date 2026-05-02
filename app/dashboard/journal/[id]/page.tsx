@@ -17,6 +17,7 @@ interface JournalEntry {
   content: string;
   visibility: Visibility;
   submission_status: SubmissionStatus;
+  comments_allowed: boolean | null;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +63,7 @@ export default function EditJournalPage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [visibility, setVisibility] = useState<Visibility>("private");
+  const [commentsAllowed, setCommentsAllowed] = useState(true);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -93,6 +95,7 @@ export default function EditJournalPage() {
       setTitle(e.title || "");
       setContent(e.content || "");
       setVisibility(e.visibility || "private");
+      setCommentsAllowed(e.comments_allowed !== false);
       setLoading(false);
     };
     void load();
@@ -109,13 +112,14 @@ export default function EditJournalPage() {
         title: title.trim() || "Untitled",
         content: content.trim(),
         visibility,
+        comments_allowed: commentsAllowed,
         updated_at: new Date().toISOString(),
       })
       .eq("id", entry.id);
     if (saveError) {
       setError(saveError.message);
     } else {
-      setEntry({ ...entry, title: title.trim() || "Untitled", content: content.trim(), visibility });
+      setEntry({ ...entry, title: title.trim() || "Untitled", content: content.trim(), visibility, comments_allowed: commentsAllowed });
     }
     setSaving(false);
   };
@@ -183,6 +187,13 @@ export default function EditJournalPage() {
       author_name: profile?.display_name || null,
     });
 
+    // 3. Send acknowledgement email — fire-and-forget; don't block on it
+    void fetch("/api/notifications/journal-acknowledgement", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ journalId: entry.id, title: title.trim() || "Untitled" }),
+    }).catch((e) => console.warn("[journal-ack] email failed", e));
+
     setSubmitting(false);
     setConfirmingSubmit(false);
     router.push("/dashboard/journal");
@@ -236,6 +247,20 @@ export default function EditJournalPage() {
           </button>
         </div>
       </div>
+
+      {/* Comments toggle — only relevant when entry is shared (not private) */}
+      {visibility !== "private" && !locked && (
+        <div className="mb-4 flex items-center gap-2 text-sm text-zinc-600">
+          <input
+            id="commentsAllowed"
+            type="checkbox"
+            checked={commentsAllowed}
+            onChange={(e) => setCommentsAllowed(e.target.checked)}
+            className="rounded border-zinc-300 text-brand-blue focus:ring-brand-blue"
+          />
+          <label htmlFor="commentsAllowed">Allow comments on this entry</label>
+        </div>
+      )}
 
       {submissionMeta && (
         <div className={`mb-6 p-4 rounded-xl flex items-start gap-3 ${submissionMeta.color}`}>

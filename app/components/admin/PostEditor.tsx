@@ -95,6 +95,8 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
       is_featured: post.is_featured || false,
       is_syndicated: post.is_syndicated || false,
       canonical_url: post.canonical_url || null,
+      // comments_enabled defaults to true; only false if explicitly toggled off
+      comments_enabled: post.comments_enabled === false ? false : true,
       // Editorial stages are pre-publish only — clear when publishing so a
       // formerly-scheduled post doesn't keep leaking into the Scheduled filter.
       draft_status: publish === true ? null : (post.draft_status || null),
@@ -488,7 +490,7 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
               />
               Featured post
             </label>
-            <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <label className="flex items-center gap-2 text-sm text-zinc-700 mb-2">
               <input
                 type="checkbox"
                 checked={!!post.is_syndicated}
@@ -496,6 +498,15 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
                 className="rounded border-zinc-300 text-brand-blue focus:ring-brand-blue"
               />
               Syndicated content
+            </label>
+            <label className="flex items-center gap-2 text-sm text-zinc-700">
+              <input
+                type="checkbox"
+                checked={post.comments_enabled !== false}
+                onChange={(e) => updateField("comments_enabled", e.target.checked)}
+                className="rounded border-zinc-300 text-brand-blue focus:ring-brand-blue"
+              />
+              Comments enabled
             </label>
           </div>
         </div>

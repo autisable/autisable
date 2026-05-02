@@ -20,6 +20,7 @@ interface Post {
   author_name: string | null;
   canonical_url: string | null;
   is_syndicated: boolean;
+  comments_enabled?: boolean | null; // optional — defaults to enabled if column missing or NULL
 }
 
 interface RelatedPost {
@@ -224,10 +225,12 @@ export default function BlogPostClient({ post, relatedPosts, author }: Props) {
         <BlogShareButtons title={post.title} slug={post.slug} />
       </div>
 
-      {/* Comments */}
-      <div className="mt-12">
-        <Comments pageId={post.id} pageType="blog" />
-      </div>
+      {/* Comments — hidden if editor disabled them on this post */}
+      {post.comments_enabled !== false && (
+        <div className="mt-12">
+          <Comments pageId={post.id} pageType="blog" />
+        </div>
+      )}
 
       {/* Related Posts */}
       {relatedPosts.length > 0 && (

@@ -69,6 +69,7 @@ CREATE TABLE IF NOT EXISTS blog_posts (
   is_syndicated BOOLEAN DEFAULT FALSE,
   canonical_url TEXT,
   draft_status TEXT, -- in_progress | pending_review | ready_for_scheduling | rejected | trash | NULL
+  comments_enabled BOOLEAN DEFAULT TRUE, -- editor toggle: hide comments section on a per-post basis
   deleted_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -112,6 +113,7 @@ CREATE TABLE IF NOT EXISTS journal_entries (
   content TEXT NOT NULL DEFAULT '',
   visibility TEXT DEFAULT 'private' CHECK (visibility IN ('private', 'followers', 'all_members')),
   submission_status TEXT CHECK (submission_status IN ('none', 'submitted', 'under_review', 'approved', 'published', 'returned')),
+  comments_allowed BOOLEAN DEFAULT TRUE, -- member toggle for their own followers/public entries; private entries ignore this
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

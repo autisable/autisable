@@ -28,6 +28,11 @@ const categories = [
         description: "Evidence-based therapy tools, ABA materials, and training for parents and professionals. Browse our curated collection.",
         href: "https://autisable.store.special-learning.com",
       },
+      {
+        name: "Autism Parenting Magazine",
+        description: "Strategies, tips, and stories for raising children on the autism spectrum. Monthly articles by therapists, parents, and autism specialists.",
+        href: "https://members.autismparentingmagazine.com/dap/a/?a=62040&p=AutismParentingMagazine.com/how_to_purchase",
+      },
     ],
   },
   {
