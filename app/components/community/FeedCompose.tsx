@@ -108,16 +108,33 @@ export default function FeedCompose({ currentUserId, currentUserDisplayName, cur
     setPosting(false);
   };
 
+  // First-name personalization for the placeholder so it reads as a prompt to
+  // a specific person rather than a generic input field.
+  const firstName = (currentUserDisplayName || "").split(/\s+/)[0];
+  const placeholder = firstName
+    ? `What's on your mind, ${firstName}?`
+    : "Share what's on your mind...";
+
   return (
     <div className="bg-white border border-zinc-200 rounded-2xl p-5 mb-6">
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        placeholder="Share what's on your mind..."
-        rows={3}
-        maxLength={MAX_LENGTH + 200}
-        className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm resize-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
-      />
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-full bg-brand-blue-light text-brand-blue flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
+          {currentUserAvatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={currentUserAvatarUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            firstName?.charAt(0).toUpperCase() || "?"
+          )}
+        </div>
+        <textarea
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder={placeholder}
+          rows={3}
+          maxLength={MAX_LENGTH + 200}
+          className="flex-1 px-3 py-2 border border-zinc-200 rounded-lg text-sm resize-none focus:ring-2 focus:ring-brand-blue focus:border-transparent"
+        />
+      </div>
 
       {imageUrl && (
         <div className="mt-3 relative inline-block">

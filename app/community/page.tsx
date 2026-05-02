@@ -5,6 +5,7 @@ import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
 import FeedActions from "@/app/components/community/FeedActions";
 import FeedCompose from "@/app/components/community/FeedCompose";
+import { relativeTime } from "@/app/lib/relativeTime";
 
 const supabase = getSupabase();
 
@@ -397,11 +398,11 @@ export default function CommunityPage() {
                           {item.display_name}
                         </Link>
                         <div className="flex items-center gap-2 text-xs text-zinc-400">
-                          <time>
-                            {new Date(item.created_at).toLocaleDateString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                            })}
+                          <time
+                            dateTime={item.created_at}
+                            title={new Date(item.created_at).toLocaleString()}
+                          >
+                            {relativeTime(item.created_at)}
                           </time>
                           {item.source === "journal" && (
                             <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-full text-[10px] font-medium">
@@ -434,6 +435,7 @@ export default function CommunityPage() {
                       initialReplyCount={item.replies_count}
                       currentUserId={user?.id || null}
                       currentUserDisplayName={user?.display_name || null}
+                      currentUserAvatarUrl={user?.avatar_url || null}
                     />
                   </div>
                 ))}

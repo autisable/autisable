@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
+import { relativeTime } from "@/app/lib/relativeTime";
 
 const supabase = getSupabase();
 
@@ -13,6 +15,7 @@ interface Reply {
   display_name: string;
   content: string;
   created_at: string;
+  avatar_url?: string | null;
 }
 
 interface Props {
@@ -22,6 +25,7 @@ interface Props {
   initialReplyCount: number;
   currentUserId: string | null;
   currentUserDisplayName: string | null;
+  currentUserAvatarUrl?: string | null;
 }
 
 /**
@@ -36,6 +40,7 @@ export default function FeedActions({
   initialReplyCount,
   currentUserId,
   currentUserDisplayName,
+  currentUserAvatarUrl,
 }: Props) {
   const [likeCount, setLikeCount] = useState(initialLikeCount);
   const [liked, setLiked] = useState(false);
@@ -117,7 +122,23 @@ export default function FeedActions({
       .eq("feed_item_type", feedItemType)
       .order("created_at", { ascending: true })
       .limit(50);
-    setReplies(data || []);
+
+    // Hydrate avatar_url for each reply author in one batched lookup so we
+    // don't fan out per-reply.
+    const replyRows: Reply[] = data || [];
+    if (replyRows.length > 0) {
+      const userIds = [...new Set(replyRows.map((r) => r.user_id))];
+      const { data: profiles } = await supabase
+        .from("user_profiles")
+        .select("id, avatar_url")
+        .in("id", userIds);
+      const avatarById = new Map((profiles || []).map((p) => [p.id, p.avatar_url]));
+      replyRows.forEach((r) => {
+        r.avatar_url = avatarById.get(r.user_id) || null;
+      });
+    }
+
+    setReplies(replyRows);
     setRepliesLoaded(true);
   };
 
@@ -140,7 +161,10 @@ export default function FeedActions({
       .single();
 
     if (!error && data) {
-      setReplies((prev) => [...prev, data as Reply]);
+      // Use the current user's avatar for the optimistic insert so the new
+      // reply renders with the right picture without waiting for a refetch.
+      const newReply: Reply = { ...(data as Reply), avatar_url: currentUserAvatarUrl || null };
+      setReplies((prev) => [...prev, newReply]);
       setReplyCount((c) => c + 1);
       setReplyDraft("");
     } else if (error) {
@@ -203,14 +227,33 @@ export default function FeedActions({
             <p className="text-xs text-zinc-400 italic">No replies yet — be the first.</p>
           )}
           {replies.map((r) => (
-            <div key={r.id} className="text-sm">
-              <p className="font-medium text-zinc-900">
-                {r.display_name}{" "}
-                <time className="font-normal text-xs text-zinc-400">
-                  · {new Date(r.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-                </time>
-              </p>
-              <p className="text-zinc-700 mt-0.5">{r.content}</p>
+            <div key={r.id} className="flex items-start gap-2.5 text-sm">
+              <Link
+                href={`/member/${r.user_id}`}
+                className="w-7 h-7 rounded-full bg-brand-blue-light text-brand-blue flex items-center justify-center text-[11px] font-bold shrink-0 overflow-hidden hover:opacity-80"
+              >
+                {r.avatar_url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={r.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  r.display_name?.charAt(0).toUpperCase() || "?"
+                )}
+              </Link>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium text-zinc-900">
+                  <Link href={`/member/${r.user_id}`} className="hover:text-brand-blue">
+                    {r.display_name}
+                  </Link>{" "}
+                  <time
+                    className="font-normal text-xs text-zinc-400"
+                    dateTime={r.created_at}
+                    title={new Date(r.created_at).toLocaleString()}
+                  >
+                    · {relativeTime(r.created_at)}
+                  </time>
+                </p>
+                <p className="text-zinc-700 mt-0.5 break-words">{r.content}</p>
+              </div>
             </div>
           ))}
 
