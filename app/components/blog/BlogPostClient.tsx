@@ -5,6 +5,8 @@ import Link from "next/link";
 import Comments from "../Comments";
 import BlogShareButtons from "./BlogShareButtons";
 import NewsletterPopup from "./NewsletterPopup";
+import AffiliateBanner from "../AffiliateBanner";
+import type { Affiliate } from "@/app/lib/pickAffiliate";
 
 interface Post {
   id: string;
@@ -48,9 +50,10 @@ interface Props {
   post: Post;
   relatedPosts: RelatedPost[];
   author?: Author | null;
+  affiliate?: Affiliate | null;
 }
 
-export default function BlogPostClient({ post, relatedPosts, author }: Props) {
+export default function BlogPostClient({ post, relatedPosts, author, affiliate }: Props) {
   return (
     <>
     <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -118,6 +121,15 @@ export default function BlogPostClient({ post, relatedPosts, author }: Props) {
         className="prose prose-zinc prose-lg max-w-none prose-headings:tracking-tight prose-a:text-brand-blue prose-img:rounded-xl"
         dangerouslySetInnerHTML={{ __html: post.content }}
       />
+
+      {/* Affiliate slot — sits between the article and the author bio so it's
+          visible without interrupting the read. Only renders if there's an
+          eligible affiliate for this category. */}
+      {affiliate && (
+        <div className="mt-10 flex justify-center">
+          <AffiliateBanner affiliate={affiliate} size="300x250" />
+        </div>
+      )}
 
       {/* Syndicated Post Footer */}
       {post.is_syndicated && post.canonical_url && (

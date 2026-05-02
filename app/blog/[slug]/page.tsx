@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/app/lib/supabase";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import BlogPostClient from "@/app/components/blog/BlogPostClient";
+import { pickAffiliate } from "@/app/lib/pickAffiliate";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -162,6 +163,11 @@ export default async function BlogPostPage({ params }: Props) {
     ],
   };
 
+  // Pick a sidebar-eligible affiliate matched to this post's category. Each
+  // request rotates so different visits see different partners. Returns null
+  // if nothing eligible — BlogPostClient renders no banner in that case.
+  const affiliate = await pickAffiliate("sidebar", post.category || null);
+
   return (
     <>
       <script
@@ -172,7 +178,7 @@ export default async function BlogPostPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
-      <BlogPostClient post={post} relatedPosts={related || []} author={author} />
+      <BlogPostClient post={post} relatedPosts={related || []} author={author} affiliate={affiliate} />
     </>
   );
 }

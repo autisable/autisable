@@ -226,6 +226,44 @@ CREATE POLICY "Authenticated users can insert notifications" ON notifications FO
 DROP POLICY IF EXISTS "Users can delete own notifications" ON notifications;
 CREATE POLICY "Users can delete own notifications" ON notifications FOR DELETE USING (auth.uid() = user_id);
 
+-- L5: Affiliate banners. Admin-managed slots that render in sidebar / footer
+-- on selected pages. Until Joel ships banner artwork, banner_*_url stays NULL
+-- and the component falls back to a styled text card built from name +
+-- tagline + cta_label.
+CREATE TABLE IF NOT EXISTS affiliates (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  slug TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  tagline TEXT,                       -- One-line pitch shown on text-card fallback
+  cta_label TEXT DEFAULT 'Learn more',
+  click_url TEXT NOT NULL,            -- Where the click goes (must include affiliate tag/ID)
+  banner_300x250_url TEXT,            -- Primary banner asset (IAB medium rectangle)
+  banner_468x60_url TEXT,             -- Secondary banner asset (IAB full banner)
+  category_filter TEXT[],             -- NULL = show everywhere; otherwise only these blog categories
+  show_in_sidebar BOOLEAN DEFAULT TRUE,
+  show_in_footer BOOLEAN DEFAULT FALSE,
+  is_active BOOLEAN DEFAULT TRUE,
+  position INT DEFAULT 100,           -- Rotation order, lower shows first
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE affiliates ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Affiliates are publicly readable" ON affiliates FOR SELECT USING (is_active = true);
+CREATE POLICY "Admins can read all affiliates" ON affiliates FOR SELECT USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+CREATE POLICY "Admins can manage affiliates" ON affiliates FOR ALL USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+
+-- Seed the three launch partners so the framework is non-empty out of the box.
+-- ON CONFLICT DO NOTHING so re-runs don't overwrite admin edits.
+INSERT INTO affiliates (slug, name, tagline, cta_label, click_url, position) VALUES
+  ('legalshield', 'LegalShield', 'Affordable legal protection for families navigating IEPs and special education law.', 'Get covered', 'https://autisablellc.legalshieldassociate.com/', 10),
+  ('apm', 'Autism Parenting Magazine', 'Strategies and stories for raising children on the autism spectrum.', 'Subscribe', 'https://members.autismparentingmagazine.com/dap/a/?a=62040&p=AutismParentingMagazine.com/how_to_purchase', 20),
+  ('vizyplan', 'VizyPlan', 'Visual planning tools that help autistic individuals build independence and manage daily routines.', 'See how it works', 'https://vizyplan.com', 30)
+ON CONFLICT (slug) DO NOTHING;
+
 -- Newsletter Subscribers
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
