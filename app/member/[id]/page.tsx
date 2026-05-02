@@ -7,7 +7,6 @@ import FollowControls from "@/app/components/profile/FollowControls";
 import FollowersList from "@/app/components/profile/FollowersList";
 import JournalTab from "@/app/components/profile/JournalTab";
 
-export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
 interface Props {

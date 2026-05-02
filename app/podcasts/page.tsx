@@ -7,7 +7,6 @@ export const metadata: Metadata = {
   description: "Three podcast shows from the Autisable community — conversations that inform, inspire, and connect.",
 };
 
-export const dynamic = "force-dynamic";
 export const revalidate = 600;
 
 type Show = {

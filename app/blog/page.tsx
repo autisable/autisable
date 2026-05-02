@@ -9,7 +9,9 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://autisable.com/blog/" },
 };
 
-export const dynamic = "force-dynamic";
+// ISR — see /app/page.tsx for the same rationale. Blog list isn't minute-
+// sensitive; cached pages dramatically reduce Supabase query load.
+export const revalidate = 60;
 
 export default async function BlogPage() {
   const { data: posts } = await supabaseAdmin
