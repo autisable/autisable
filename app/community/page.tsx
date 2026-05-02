@@ -11,6 +11,7 @@ interface FeedItem {
   id: string;
   user_id: string;
   display_name: string;
+  title?: string | null;
   content: string;
   type: "journal" | "post";
   // Source table — distinct from `type`. Used to scope reactions / replies.
@@ -112,7 +113,8 @@ export default function CommunityPage() {
             id: j.id,
             user_id: j.user_id,
             display_name: nameById.get(j.user_id) || "Member",
-            content: j.title ? `<strong>${j.title}</strong><br/>${j.content || ""}` : (j.content || ""),
+            title: j.title || null,
+            content: j.content || "",
             type: "journal",
             source: "journal",
             created_at: j.created_at,
@@ -282,6 +284,11 @@ export default function CommunityPage() {
                       </div>
                     </div>
                   </div>
+                  {item.title && (
+                    <h3 className="text-base font-semibold text-zinc-900 mb-1.5 leading-snug">
+                      {item.title}
+                    </h3>
+                  )}
                   <p className="text-sm text-zinc-700 leading-relaxed whitespace-pre-line">
                     {item.content?.replace(/<[^>]*>/g, "").slice(0, 500)}
                   </p>
