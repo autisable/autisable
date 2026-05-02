@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabase } from "@/app/lib/supabase-browser";
+import { adminFetch } from "@/app/lib/adminFetch";
 import RichTextEditor from "./RichTextEditor";
 
 const supabase = getSupabase();
@@ -20,6 +21,8 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
   const [categories, setCategories] = useState<string[]>([]);
   const [authors, setAuthors] = useState<{ id: string; display_name: string }[]>([]);
   const [showSeo, setShowSeo] = useState(false);
+  const [seoBusy, setSeoBusy] = useState(false);
+  const [seoError, setSeoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -49,6 +52,46 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
   const updateField = (field: string, value: unknown) => {
     setPost((prev) => ({ ...prev, [field]: value }));
     setSaved(false);
+  };
+
+  const handleGenerateSeo = async () => {
+    setSeoBusy(true);
+    setSeoError(null);
+    try {
+      const res = await adminFetch("/api/admin/seo-generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: post.title || "",
+          excerpt: post.excerpt || "",
+          content: post.content || "",
+          category: post.category || "",
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSeoError(data.error || "Generation failed");
+        return;
+      }
+      const seo = data.seo as {
+        meta_title: string;
+        meta_description: string;
+        focus_keyword: string;
+        keywords: string[];
+      };
+      setPost((prev) => ({
+        ...prev,
+        meta_title: seo.meta_title,
+        meta_description: seo.meta_description,
+        focus_keyword: seo.focus_keyword,
+        keywords: seo.keywords,
+      }));
+      setSaved(false);
+    } catch (e) {
+      setSeoError(e instanceof Error ? e.message : "Generation failed");
+    } finally {
+      setSeoBusy(false);
+    }
   };
 
   const generateSlug = (title: string) => {
@@ -200,6 +243,42 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
             </button>
             {showSeo && (
               <div className="mt-4 space-y-4 p-5 bg-zinc-50 rounded-xl border border-zinc-100">
+                {/* AI generation — fills meta title/desc, focus keyword, keywords from post body */}
+                <div className="flex items-start gap-3 p-3 bg-white rounded-lg border border-brand-blue/20">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-zinc-900">Generate SEO with AI</p>
+                    <p className="text-xs text-zinc-500 mt-0.5">
+                      Reads the title and content, fills in meta + keywords. You can edit anything after.
+                    </p>
+                    {seoError && (
+                      <p className="text-xs text-brand-red mt-1.5">{seoError}</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleGenerateSeo}
+                    disabled={seoBusy || (!post.title && !post.content)}
+                    className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-brand-blue text-white rounded-lg hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {seoBusy ? (
+                      <>
+                        <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                        </svg>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.847-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.847.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
+                        </svg>
+                        Generate
+                      </>
+                    )}
+                  </button>
+                </div>
+
                 <div>
                   <label className="block text-xs font-medium text-zinc-500 mb-1">
                     Focus Keyphrase <span className="text-zinc-400 font-normal">— the primary search term this post should rank for</span>

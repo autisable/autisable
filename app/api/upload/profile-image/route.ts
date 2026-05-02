@@ -13,6 +13,16 @@ const BUCKET = "Media";
  * own folder. Admins can upload on behalf via ?targetUserId= override.
  */
 export async function POST(req: NextRequest) {
+  // Storage writes need the service role — anon key is rejected by bucket RLS.
+  // Fail loudly here instead of silently falling back and surfacing as a
+  // confusing "row violates row-level security policy" error downstream.
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return NextResponse.json(
+      { error: "Server misconfigured: SUPABASE_SERVICE_ROLE_KEY not set" },
+      { status: 500 }
+    );
+  }
+
   // Auth — same Bearer token pattern as adminFetch.
   const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {

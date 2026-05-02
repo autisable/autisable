@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Google service account / OAuth credentials — never commit
+*-service-account*.json
+social-login*.json
+*credentials*.json
+
 # WordPress database export for migration
 *.sql
 

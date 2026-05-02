@@ -146,6 +146,38 @@ CREATE POLICY "Follows are publicly readable" ON follows FOR SELECT USING (true)
 CREATE POLICY "Members can follow on their own behalf" ON follows FOR INSERT WITH CHECK (auth.uid() = follower_id);
 CREATE POLICY "Members can unfollow on their own behalf" ON follows FOR DELETE USING (auth.uid() = follower_id);
 
+-- Feed reactions (likes on community feed items)
+CREATE TABLE IF NOT EXISTS feed_reactions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  feed_item_id UUID NOT NULL,
+  feed_item_type TEXT NOT NULL CHECK (feed_item_type IN ('activity', 'journal')),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  reaction TEXT DEFAULT 'like' CHECK (reaction IN ('like')),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(feed_item_id, feed_item_type, user_id, reaction)
+);
+ALTER TABLE feed_reactions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Reactions readable by members" ON feed_reactions FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Members can react on own behalf" ON feed_reactions FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Members can remove own reactions" ON feed_reactions FOR DELETE USING (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS idx_feed_reactions_item ON feed_reactions(feed_item_id, feed_item_type);
+
+-- Feed replies (threaded comments on community feed items)
+CREATE TABLE IF NOT EXISTS feed_replies (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  feed_item_id UUID NOT NULL,
+  feed_item_type TEXT NOT NULL CHECK (feed_item_type IN ('activity', 'journal')),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  display_name TEXT NOT NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE feed_replies ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Replies readable by members" ON feed_replies FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Members can reply on own behalf" ON feed_replies FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Members can delete own replies" ON feed_replies FOR DELETE USING (auth.uid() = user_id);
+CREATE INDEX IF NOT EXISTS idx_feed_replies_item ON feed_replies(feed_item_id, feed_item_type, created_at);
+
 -- Notifications
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

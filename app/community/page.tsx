@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
+import FeedActions from "@/app/components/community/FeedActions";
 
 const supabase = getSupabase();
 
@@ -12,6 +13,8 @@ interface FeedItem {
   display_name: string;
   content: string;
   type: "journal" | "post";
+  // Source table — distinct from `type`. Used to scope reactions / replies.
+  source: "activity" | "journal";
   created_at: string;
   reactions_count: number;
   replies_count: number;
@@ -47,16 +50,22 @@ const previewFeed = [
 
 export default function CommunityPage() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [user, setUser] = useState<{ id: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; display_name: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       if (!supabase) { setLoading(false); return; }
       const { data: { user: u } } = await supabase.auth.getUser();
-      if (u) setUser({ id: u.id });
 
       if (u) {
+        // Get current user's display_name for use in replies
+        const { data: meProfile } = await supabase
+          .from("user_profiles")
+          .select("display_name")
+          .eq("id", u.id)
+          .single();
+        setUser({ id: u.id, display_name: meProfile?.display_name || null });
         // Pull from BOTH sources and merge:
         //  - activity_feed (status updates, future post types)
         //  - journal_entries directly (anything not private + member can always
@@ -83,6 +92,7 @@ export default function CommunityPage() {
           display_name: a.display_name,
           content: a.content,
           type: a.type as "journal" | "post",
+          source: "activity",
           created_at: a.created_at,
           reactions_count: a.reactions_count || 0,
           replies_count: a.replies_count || 0,
@@ -104,6 +114,7 @@ export default function CommunityPage() {
             display_name: nameById.get(j.user_id) || "Member",
             content: j.title ? `<strong>${j.title}</strong><br/>${j.content || ""}` : (j.content || ""),
             type: "journal",
+            source: "journal",
             created_at: j.created_at,
             reactions_count: 0,
             replies_count: 0,
@@ -112,6 +123,39 @@ export default function CommunityPage() {
         const merged = [...activityItems, ...journalItems].sort(
           (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
+
+        // Hydrate reaction + reply counts in one batched pair of queries.
+        // Single-element groups would explode into many round trips; batch on
+        // (item_id, item_type) tuples by fetching all rows and grouping client-side.
+        if (merged.length > 0) {
+          const itemIds = merged.map((m) => m.id);
+          const [reactionsRes, repliesRes] = await Promise.all([
+            supabase
+              .from("feed_reactions")
+              .select("feed_item_id, feed_item_type")
+              .in("feed_item_id", itemIds),
+            supabase
+              .from("feed_replies")
+              .select("feed_item_id, feed_item_type")
+              .in("feed_item_id", itemIds),
+          ]);
+          const tally = (rows: { feed_item_id: string; feed_item_type: string }[] | null) => {
+            const map = new Map<string, number>();
+            (rows || []).forEach((r) => {
+              const key = `${r.feed_item_id}::${r.feed_item_type}`;
+              map.set(key, (map.get(key) || 0) + 1);
+            });
+            return map;
+          };
+          const reactionTally = tally(reactionsRes.data);
+          const replyTally = tally(repliesRes.data);
+          merged.forEach((m) => {
+            const key = `${m.id}::${m.source}`;
+            m.reactions_count = reactionTally.get(key) || 0;
+            m.replies_count = replyTally.get(key) || 0;
+          });
+        }
+
         setFeed(merged);
       }
       setLoading(false);
@@ -241,20 +285,14 @@ export default function CommunityPage() {
                   <p className="text-sm text-zinc-700 leading-relaxed whitespace-pre-line">
                     {item.content?.replace(/<[^>]*>/g, "").slice(0, 500)}
                   </p>
-                  <div className="mt-4 flex items-center gap-4 text-xs text-zinc-400">
-                    <button className="inline-flex items-center gap-1 hover:text-brand-blue transition-colors">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
-                      </svg>
-                      {item.reactions_count || 0}
-                    </button>
-                    <button className="inline-flex items-center gap-1 hover:text-brand-blue transition-colors">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 20.25c4.97 0 9-3.694 9-8.25s-4.03-8.25-9-8.25S3 7.444 3 12c0 2.104.859 4.023 2.273 5.48.432.447.74 1.04.586 1.641a4.483 4.483 0 0 1-.923 1.785A5.969 5.969 0 0 0 6 21c1.282 0 2.47-.402 3.445-1.087.81.22 1.668.337 2.555.337Z" />
-                      </svg>
-                      {item.replies_count || 0}
-                    </button>
-                  </div>
+                  <FeedActions
+                    feedItemId={item.id}
+                    feedItemType={item.source}
+                    initialLikeCount={item.reactions_count}
+                    initialReplyCount={item.replies_count}
+                    currentUserId={user?.id || null}
+                    currentUserDisplayName={user?.display_name || null}
+                  />
                 </div>
               ))}
             </div>
