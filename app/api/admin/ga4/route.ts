@@ -5,27 +5,38 @@ import { requireAdmin } from "@/app/lib/adminAuth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getClient(): BetaAnalyticsDataClient | null {
+function getClient(): { client?: BetaAnalyticsDataClient; error?: string } {
   const propertyId = process.env.GA4_PROPERTY_ID;
   const credsRaw = process.env.GA4_SERVICE_ACCOUNT_JSON;
 
-  if (!propertyId || !credsRaw) return null;
+  if (!propertyId) return { error: "GA4_PROPERTY_ID is not set" };
+  if (!credsRaw) return { error: "GA4_SERVICE_ACCOUNT_JSON is not set" };
 
-  let credentials: { client_email: string; private_key: string };
+  let credentials: { client_email?: string; private_key?: string };
   try {
     credentials = JSON.parse(credsRaw);
-    // Vercel sometimes escapes \n in env vars
-    credentials.private_key = credentials.private_key.replace(/\\n/g, "\n");
-  } catch {
-    return null;
+  } catch (err) {
+    return {
+      error: `GA4_SERVICE_ACCOUNT_JSON is not valid JSON: ${(err as Error).message}. Make sure you pasted the full service-account JSON file (one line, no truncation).`,
+    };
   }
 
-  return new BetaAnalyticsDataClient({
-    credentials: {
-      client_email: credentials.client_email,
-      private_key: credentials.private_key,
-    },
-  });
+  if (!credentials.client_email) {
+    return { error: "Service account JSON is missing 'client_email' field" };
+  }
+  if (!credentials.private_key) {
+    return { error: "Service account JSON is missing 'private_key' field" };
+  }
+
+  // Vercel sometimes escapes \n in env vars; convert back to real newlines so
+  // the PEM parser doesn't trip.
+  const privateKey = credentials.private_key.replace(/\\n/g, "\n");
+
+  return {
+    client: new BetaAnalyticsDataClient({
+      credentials: { client_email: credentials.client_email, private_key: privateKey },
+    }),
+  };
 }
 
 function dateRange(days: number) {
@@ -37,11 +48,20 @@ export async function GET(req: NextRequest) {
   if (authError) return authError;
 
   const propertyId = process.env.GA4_PROPERTY_ID;
-  const client = getClient();
+  const { client, error: clientError } = getClient();
 
-  if (!client || !propertyId) {
+  if (!client) {
+    // Distinguish "not configured at all" (show setup guide) from "configured
+    // but with bad value" (show what's wrong so they can fix it).
+    const isMissing = clientError?.includes("is not set");
     return NextResponse.json({
-      error: "GA4 not configured. Set GA4_PROPERTY_ID and GA4_SERVICE_ACCOUNT_JSON in Vercel env vars.",
+      error: clientError || "GA4 not configured.",
+      configured: !isMissing,
+    }, { status: 200 });
+  }
+  if (!propertyId) {
+    return NextResponse.json({
+      error: "GA4_PROPERTY_ID is not set",
       configured: false,
     }, { status: 200 });
   }
@@ -49,7 +69,16 @@ export async function GET(req: NextRequest) {
   const params = req.nextUrl.searchParams;
   const metric = params.get("metric") || "overview";
   const days = parseInt(params.get("days") || "30", 10);
-  const property = `properties/${propertyId}`;
+  // Normalize: strip a leading "properties/" if pasted with prefix, and
+  // surrounding whitespace/quotes that often sneak in from copy/paste.
+  const cleanPropertyId = propertyId.replace(/^properties\//, "").replace(/["'\s]/g, "");
+  if (!/^\d+$/.test(cleanPropertyId)) {
+    return NextResponse.json({
+      error: `GA4_PROPERTY_ID must be the numeric property ID (e.g. 123456789), got: "${propertyId}"`,
+      configured: true,
+    }, { status: 500 });
+  }
+  const property = `properties/${cleanPropertyId}`;
 
   try {
     switch (metric) {
@@ -181,7 +210,16 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Unknown metric" }, { status: 400 });
     }
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "GA4 API error";
+    // Google's GA Data API throws errors with code/details/message fields that
+    // aren't always populated as a plain Error instance. Capture whatever's
+    // available so the admin sees something actionable instead of a blank
+    // "undefined undefined: undefined" string.
+    const e = err as { message?: string; code?: number | string; details?: string; status?: string };
+    const messageParts = [e?.code, e?.status, e?.message, e?.details].filter(Boolean);
+    const msg = messageParts.length > 0
+      ? messageParts.join(" — ")
+      : (err instanceof Error ? err.message : "GA4 API error (no detail returned)");
+    console.error("[ga4] API error:", err);
     return NextResponse.json({ error: msg, configured: true }, { status: 500 });
   }
 }
