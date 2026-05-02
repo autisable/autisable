@@ -84,7 +84,7 @@ Small, low-risk, additive items. Most don't depend on the larger feed/profile wo
 |---|---|---|---|
 | L1 | Membership profile hub (LinkedIn-style) | ⬜ | Cover, avatar, tabs (Posts/Journal/About/Followers), sidebar. |
 | L2 | Community feed v2 (chronological, paginated, all content types, compose, filter tabs) | ⬜ | Includes Q7/Q8/Q9 dependencies. |
-| L3 | Podcasts page redesign — three-show card grid + per-show detail pages | ⬜ | Embed RSS for episodes; external links to Spotify/iHeart. |
+| L3 | Podcasts page redesign — three-show card grid + per-show detail pages | ✅ | Three-card grid with show art (gradient placeholder until Joel ships real art), host attribution, recent episodes (internal source for Autisable Dads via `podcast_episodes`), "More about [show]" CTA → internal detail page, external subscribe CTA. Below the cards: related blog posts grouped per show, matched by tag. Per-show detail pages enriched with longer About copy, multi-platform Subscribe block, full episode list (internal) or "where to listen" CTA (external), and related posts grid. |
 | L4 | SEO automation pipeline (per D2 decision) | ⬜ | High-priority per Joel. |
 | L5 | Affiliate banner framework + 3 partners (LegalShield, APM, VizyPlan) | ⬜ | Awaits D1 + Joel's banner assets. |
 | L6 | Inline affiliate injection (Bookshop, Special-Learning, Amazon) | ⬜ | Per existing inline-affiliate spec; Bookshop geo-gated US/UK. |
@@ -99,6 +99,9 @@ Small, low-risk, additive items. Most don't depend on the larger feed/profile wo
 | F1 | Membership dashboard enhancement (post-stabilization analytics) | 📅 |
 | F2 | AI-assisted moderation prompt (guideline detection) | 📅 |
 | F3 | AISEO citation audit (structured data + clear writing pass) | 📅 Sub-task of L4 |
+| F4 | Real podcast show art (waiting on Joel to provide images) | ⏳ Joel | Currently using gradient placeholders for all 3 shows on /podcasts. |
+| F5 | RSS feed pulling for Hope Saves the Day & The Autism Dad episodes | 📅 | Currently external shows just link out to native platforms. |
+| F6 | Tagging existing posts with show slugs (`autisable-dads`, `hope-saves-the-day`, `the-autism-dad`) | ⏳ Editorial | Powers the "Related stories" sections. Per-show association queries `tags` array. Editors tag manually for now. |
 
 ---
 
