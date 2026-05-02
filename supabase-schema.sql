@@ -39,11 +39,19 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   social_tiktok TEXT,
   cover_photo_url TEXT, -- profile hub banner image
   self_id_tags TEXT[], -- subset of: 'parent_guardian', 'neurodiverse', 'professional'
-  role TEXT DEFAULT 'member' CHECK (role IN ('member', 'contributor', 'moderator', 'admin')),
+  role TEXT DEFAULT 'member' CHECK (role IN ('member', 'contributor', 'moderator', 'editor', 'admin')),
   status TEXT DEFAULT 'pending_approval' CHECK (status IN ('pending_approval', 'active', 'suspended', 'removed')),
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+-- M4: 5-role system (member/contributor/moderator/editor/admin). For existing
+-- deployments, swap the constraint and migrate any legacy 'author' values to
+-- 'member' (byline is now a property of the `authors` table, not user role).
+-- Idempotent: drop-then-add is safe to re-run.
+ALTER TABLE user_profiles DROP CONSTRAINT IF EXISTS user_profiles_role_check;
+UPDATE user_profiles SET role = 'member' WHERE role NOT IN ('member', 'contributor', 'moderator', 'editor', 'admin');
+ALTER TABLE user_profiles ADD CONSTRAINT user_profiles_role_check
+  CHECK (role IN ('member', 'contributor', 'moderator', 'editor', 'admin'));
 
 -- Blog Posts
 CREATE TABLE IF NOT EXISTS blog_posts (

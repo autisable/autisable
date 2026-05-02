@@ -387,6 +387,9 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
                     onChange={(e) => updateField("og_image", e.target.value)}
                     className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue"
                   />
+                  <p className="mt-1 text-[11px] text-zinc-400">
+                    Optional. <strong>1200 × 630</strong> (1.91:1). Overrides the auto-generated social card. Leave blank to use the featured image.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-zinc-500 mb-1">Canonical URL</label>
@@ -543,6 +546,9 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
               placeholder="Image URL..."
               className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue"
             />
+            <p className="mt-1.5 text-[11px] text-zinc-400">
+              Recommended: <strong>1200 × 630</strong> (16:9). Used at the top of the post and as the auto-generated social card if no OG image is set.
+            </p>
           </div>
 
           {/* Category */}
