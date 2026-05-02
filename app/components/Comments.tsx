@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
+import { relativeTime } from "@/app/lib/relativeTime";
 import AuthModal from "./AuthModal";
 
 const supabase = getSupabase();
@@ -12,6 +14,7 @@ interface Comment {
   likes: number;
   created_at: string;
   user_id: string | null;
+  avatar_url?: string | null;
 }
 
 interface Props {
@@ -34,7 +37,25 @@ export default function Comments({ pageId, pageType }: Props) {
       .eq("page", `${pageType}:${pageId}`)
       .order("created_at", { ascending: false });
 
-    if (data) setComments(data);
+    if (!data) return;
+
+    // Hydrate avatars for commenters who are members. Skipped for legacy /
+    // anonymous comments where user_id is null.
+    const memberIds = [...new Set(data.map((c) => c.user_id).filter(Boolean) as string[])];
+    if (memberIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("user_profiles")
+        .select("id, avatar_url")
+        .in("id", memberIds);
+      const avatarById = new Map((profiles || []).map((p) => [p.id, p.avatar_url]));
+      data.forEach((c) => {
+        if (c.user_id) {
+          (c as Comment).avatar_url = avatarById.get(c.user_id) || null;
+        }
+      });
+    }
+
+    setComments(data as Comment[]);
   }, [pageId, pageType]);
 
   useEffect(() => {
@@ -127,21 +148,42 @@ export default function Comments({ pageId, pageType }: Props) {
 
       {/* Comments List */}
       <div className="space-y-6">
-        {comments.map((comment) => (
-          <div key={comment.id} className="flex gap-4">
-            <div className="w-10 h-10 rounded-full bg-brand-blue-light text-brand-blue flex items-center justify-center text-sm font-bold shrink-0">
-              {comment.name.charAt(0).toUpperCase()}
+        {comments.map((comment) => {
+          // Avatar wraps in a Link only when the commenter is a member; legacy
+          // anonymous comments don't have a profile to link to.
+          const AvatarBubble = (
+            <div className="w-10 h-10 rounded-full bg-brand-blue-light text-brand-blue flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
+              {comment.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={comment.avatar_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                comment.name.charAt(0).toUpperCase()
+              )}
             </div>
+          );
+          return (
+          <div key={comment.id} className="flex gap-4">
+            {comment.user_id ? (
+              <Link href={`/member/${comment.user_id}`} className="hover:opacity-80">{AvatarBubble}</Link>
+            ) : (
+              AvatarBubble
+            )}
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-sm font-semibold text-zinc-900">{comment.name}</span>
-                <span className="text-xs text-zinc-400">
-                  {new Date(comment.created_at).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })}
-                </span>
+                {comment.user_id ? (
+                  <Link href={`/member/${comment.user_id}`} className="text-sm font-semibold text-zinc-900 hover:text-brand-blue">
+                    {comment.name}
+                  </Link>
+                ) : (
+                  <span className="text-sm font-semibold text-zinc-900">{comment.name}</span>
+                )}
+                <time
+                  className="text-xs text-zinc-400"
+                  dateTime={comment.created_at}
+                  title={new Date(comment.created_at).toLocaleString()}
+                >
+                  {relativeTime(comment.created_at)}
+                </time>
               </div>
               <p className="text-sm text-zinc-700 leading-relaxed">{comment.comment}</p>
               <button
@@ -155,7 +197,8 @@ export default function Comments({ pageId, pageType }: Props) {
               </button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
