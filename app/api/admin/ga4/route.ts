@@ -5,14 +5,19 @@ import { requireAdmin } from "@/app/lib/adminAuth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getClient(): { client?: BetaAnalyticsDataClient; error?: string } {
+function getClient(): {
+  client?: BetaAnalyticsDataClient;
+  error?: string;
+  clientEmail?: string;
+  projectId?: string;
+} {
   const propertyId = process.env.GA4_PROPERTY_ID;
   const credsRaw = process.env.GA4_SERVICE_ACCOUNT_JSON;
 
   if (!propertyId) return { error: "GA4_PROPERTY_ID is not set" };
   if (!credsRaw) return { error: "GA4_SERVICE_ACCOUNT_JSON is not set" };
 
-  let credentials: { client_email?: string; private_key?: string };
+  let credentials: { client_email?: string; private_key?: string; project_id?: string };
   try {
     credentials = JSON.parse(credsRaw);
   } catch (err) {
@@ -36,6 +41,8 @@ function getClient(): { client?: BetaAnalyticsDataClient; error?: string } {
     client: new BetaAnalyticsDataClient({
       credentials: { client_email: credentials.client_email, private_key: privateKey },
     }),
+    clientEmail: credentials.client_email,
+    projectId: credentials.project_id,
   };
 }
 
@@ -48,7 +55,7 @@ export async function GET(req: NextRequest) {
   if (authError) return authError;
 
   const propertyId = process.env.GA4_PROPERTY_ID;
-  const { client, error: clientError } = getClient();
+  const { client, error: clientError, clientEmail, projectId } = getClient();
 
   if (!client) {
     // Distinguish "not configured at all" (show setup guide) from "configured
@@ -255,6 +262,23 @@ export async function GET(req: NextRequest) {
       } catch {
         msg = "GA4 API error (no detail available)";
       }
+    }
+
+    // Detect the empty-metadata + undefined-message signature, which almost
+    // always means the Google Analytics Data API isn't enabled in the GCP
+    // project that owns this service account. Tell the admin exactly where
+    // to fix it.
+    const isApiNotEnabledSignature =
+      typeof e?.message === "string" &&
+      e.message.includes("undefined undefined") &&
+      (!e?.metadata || (typeof e.metadata === "object" && Object.keys(e.metadata as object).length === 0));
+
+    if (isApiNotEnabledSignature) {
+      const projectHint = projectId ? ` (project: ${projectId})` : "";
+      const enableUrl = projectId
+        ? `https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com?project=${projectId}`
+        : "https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com";
+      msg = `Google Analytics Data API is not enabled in your GCP project${projectHint}. Enable it here: ${enableUrl} — service account: ${clientEmail || "(unknown)"}`;
     }
 
     return NextResponse.json({ error: msg, configured: true }, { status: 500 });
