@@ -293,39 +293,46 @@ export default function EditJournalPage() {
       />
 
       {!locked && (
-        <div className="mt-8 pt-8 border-t border-zinc-100 flex items-center justify-between gap-4">
-          <button
-            onClick={handleDelete}
-            className="text-sm text-brand-red hover:underline"
-          >
-            Delete entry
-          </button>
+        <div className="mt-8 pt-8 border-t border-zinc-100">
           {confirmingSubmit ? (
-            <div className="flex items-center gap-3">
-              <p className="text-xs text-zinc-500 max-w-xs">
-                Once submitted, you won&apos;t be able to edit until an editor responds. Continue?
+            // Full-width confirmation block — stacks cleanly on mobile, no
+            // squashed text or wrapping button labels.
+            <div className="space-y-4">
+              <p className="text-sm text-zinc-600">
+                Once submitted, you won&apos;t be able to edit this entry until an editor responds.
+                Continue?
               </p>
-              <button
-                onClick={() => setConfirmingSubmit(false)}
-                className="px-3 py-1.5 text-sm text-zinc-600 hover:bg-zinc-100 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmitToEditors}
-                disabled={submitting}
-                className="px-4 py-1.5 bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-medium rounded-lg disabled:opacity-50"
-              >
-                {submitting ? "Submitting..." : "Yes, submit"}
-              </button>
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleSubmitToEditors}
+                  disabled={submitting}
+                  className="px-5 py-2 bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-medium rounded-lg disabled:opacity-50 whitespace-nowrap"
+                >
+                  {submitting ? "Submitting..." : "Yes, submit"}
+                </button>
+                <button
+                  onClick={() => setConfirmingSubmit(false)}
+                  className="px-5 py-2 text-sm text-zinc-600 hover:bg-zinc-100 rounded-lg whitespace-nowrap"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           ) : (
-            <button
-              onClick={() => setConfirmingSubmit(true)}
-              className="px-5 py-2 bg-white border border-brand-blue text-brand-blue hover:bg-brand-blue-light text-sm font-medium rounded-xl transition-colors"
-            >
-              Submit to Editors &rarr;
-            </button>
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <button
+                onClick={handleDelete}
+                className="text-sm text-brand-red hover:underline whitespace-nowrap"
+              >
+                Delete entry
+              </button>
+              <button
+                onClick={() => setConfirmingSubmit(true)}
+                className="px-5 py-2 bg-white border border-brand-blue text-brand-blue hover:bg-brand-blue-light text-sm font-medium rounded-xl transition-colors whitespace-nowrap"
+              >
+                Submit to Editors &rarr;
+              </button>
+            </div>
           )}
         </div>
       )}
