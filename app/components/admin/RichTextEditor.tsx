@@ -5,6 +5,73 @@ import StarterKit from "@tiptap/starter-kit";
 import ImageExtension from "@tiptap/extension-image";
 import LinkExtension from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import { Node, mergeAttributes } from "@tiptap/core";
+
+// Generic embed node — wraps an <iframe> for video (YouTube) and audio
+// (Buzzsprout, Spotify, Apple Podcasts, etc.). Renders to a real iframe so
+// dangerouslySetInnerHTML on the public blog post just works.
+const EmbedNode = Node.create({
+  name: "embed",
+  group: "block",
+  atom: true,
+  draggable: true,
+  selectable: true,
+  addAttributes() {
+    return {
+      src: { default: null },
+      "data-embed-type": { default: "video" }, // "video" → 16:9, "audio" → fixed height
+    };
+  },
+  parseHTML() {
+    return [{ tag: "iframe[src]" }];
+  },
+  renderHTML({ HTMLAttributes }) {
+    const isAudio = HTMLAttributes["data-embed-type"] === "audio";
+    return [
+      "div",
+      { class: isAudio ? "embed-audio my-6" : "embed-video my-6" },
+      [
+        "iframe",
+        mergeAttributes(HTMLAttributes, {
+          frameborder: "0",
+          loading: "lazy",
+          allowfullscreen: "true",
+          allow: "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share",
+          style: isAudio
+            ? "width: 100%; height: 200px; border-radius: 12px;"
+            : "width: 100%; aspect-ratio: 16/9; border-radius: 12px;",
+        }),
+      ],
+    ];
+  },
+});
+
+// Extract YouTube video ID from any common URL shape and return embed URL.
+function youtubeUrlToEmbed(input: string): string | null {
+  const trimmed = input.trim();
+  // youtu.be/VIDEO_ID
+  let m = trimmed.match(/youtu\.be\/([a-zA-Z0-9_-]{6,})/);
+  if (m) return `https://www.youtube.com/embed/${m[1]}`;
+  // youtube.com/watch?v=VIDEO_ID
+  m = trimmed.match(/[?&]v=([a-zA-Z0-9_-]{6,})/);
+  if (m) return `https://www.youtube.com/embed/${m[1]}`;
+  // youtube.com/embed/VIDEO_ID (already embed)
+  m = trimmed.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{6,})/);
+  if (m) return `https://www.youtube.com/embed/${m[1]}`;
+  return null;
+}
+
+// Extract iframe src from a full embed code OR accept a bare URL.
+function extractIframeSrc(input: string): string | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  // Full <iframe src="..."> embed code
+  const m = trimmed.match(/<iframe[^>]+src=["']([^"']+)["']/i);
+  if (m) return m[1];
+  // Bare URL — assume it's the iframe URL itself
+  if (/^https?:\/\//.test(trimmed)) return trimmed;
+  return null;
+}
 
 interface Props {
   content: string;
@@ -20,6 +87,7 @@ export default function RichTextEditor({ content, onChange }: Props) {
       ImageExtension.configure({ inline: false }),
       LinkExtension.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder: "Start writing your post..." }),
+      EmbedNode,
     ],
     content,
     onUpdate: ({ editor: e }) => {
@@ -41,6 +109,40 @@ export default function RichTextEditor({ content, onChange }: Props) {
     } else {
       editor.chain().focus().unsetLink().run();
     }
+  };
+
+  const addYoutube = () => {
+    const url = prompt(
+      "YouTube URL (e.g. https://youtu.be/abc123 or https://youtube.com/watch?v=abc123):"
+    );
+    if (!url) return;
+    const embedSrc = youtubeUrlToEmbed(url);
+    if (!embedSrc) {
+      alert("Couldn't recognize that as a YouTube URL. Try a youtu.be or youtube.com/watch?v= link.");
+      return;
+    }
+    editor
+      .chain()
+      .focus()
+      .insertContent({ type: "embed", attrs: { src: embedSrc, "data-embed-type": "video" } })
+      .run();
+  };
+
+  const addPodcast = () => {
+    const input = prompt(
+      "Podcast embed code or URL (paste the full <iframe>...</iframe> from Buzzsprout/Spotify/Apple, or just the iframe URL):"
+    );
+    if (!input) return;
+    const src = extractIframeSrc(input);
+    if (!src) {
+      alert("Couldn't find a usable URL in that input. Paste the full iframe embed code or just the player URL.");
+      return;
+    }
+    editor
+      .chain()
+      .focus()
+      .insertContent({ type: "embed", attrs: { src, "data-embed-type": "audio" } })
+      .run();
   };
 
   return (
@@ -120,6 +222,16 @@ export default function RichTextEditor({ content, onChange }: Props) {
         <ToolButton onClick={addImage} title="Image">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0 0 22.5 18.75V5.25A2.25 2.25 0 0 0 20.25 3H3.75A2.25 2.25 0 0 0 1.5 5.25v13.5A2.25 2.25 0 0 0 3.75 21Z" />
+          </svg>
+        </ToolButton>
+        <ToolButton onClick={addYoutube} title="Embed YouTube video">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+          </svg>
+        </ToolButton>
+        <ToolButton onClick={addPodcast} title="Embed podcast / audio player">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
           </svg>
         </ToolButton>
         <div className="w-px h-5 bg-zinc-200 mx-1" />

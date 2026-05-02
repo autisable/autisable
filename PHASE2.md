@@ -56,8 +56,8 @@ Small, low-risk, additive items. Most don't depend on the larger feed/profile wo
 | Q1 | Comments on/off toggle per blog post (in editor + DB) | ✅ | `comments_enabled` column added (SQL migration needed); toggle in PostEditor; respected in BlogPostClient. |
 | Q2 | Allow/disallow comments on journal entries (member-controlled) | ✅ | `comments_allowed` column added (SQL migration needed); toggle in journal edit (only shows when not private). |
 | Q3 | APM affiliate link → Resources page ONLY (not sitewide) | ✅ | Added under "Therapy & Learning" category. |
-| Q4 | YouTube embed button in PostEditor toolbar | ⬜ | TipTap YouTube extension. |
-| Q5 | Podcast embed button in PostEditor toolbar | ⬜ | TipTap iframe/HTML embed. |
+| Q4 | YouTube embed button in PostEditor toolbar | ✅ | Custom Embed node in TipTap. Parses youtu.be / youtube.com URLs into 16:9 iframe. |
+| Q5 | Podcast embed button in PostEditor toolbar | ✅ | Same custom Embed node. Accepts full `<iframe>` paste OR bare URL. Renders as fixed-height audio player. |
 | Q6 | Email notifications at pipeline stages | 🚧 | **Acknowledgement on submit done.** Approve/reject/live-link hooks need state-change detection + schema additions (submitted_by, rejection_reason). Moved to medium scope (M6). |
 | Q7 | Notifications + Followers as feed tabs (currently 404) | 📅 | Depends on feed v2 (M3). Bookmark for that batch. |
 | Q8 | Image upload in status updates (not just GIF) | 📅 | Depends on feed v2 (M3). |
