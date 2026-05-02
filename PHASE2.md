@@ -69,7 +69,7 @@ Small, low-risk, additive items. Most don't depend on the larger feed/profile wo
 
 | # | Item | Status | Notes |
 |---|---|---|---|
-| M1 | Featured image + OG auto-gen at 1200×630 | ⬜ | Vercel OG library or Satori, runs on publish. |
+| M1 | Featured image + OG auto-gen at 1200×630 | ✅ | `/api/og/[slug]` route uses `next/og` ImageResponse. Editor's `og_image` upload still wins (overrides auto-gen). Layout: featured image left half + title/category/author/brand on right; falls back to text-only with brand stripe when no featured image. Cached 1h at edge. Wired into blog post `generateMetadata` + JSON-LD article schema. |
 | M2 | Profile image + cover photo upload (user + admin can act on behalf) | ⬜ | Supabase Storage, crop UI. |
 | M3 | Self-ID tags on profile (3 colored chips, mutually exclusive Neuro pairs) | ⬜ | Multi-select, optional, editable post-registration. |
 | M4 | 5-role system + migrate Author → Member | ⬜ | Schema + admin UI for role assignment. |

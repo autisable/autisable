@@ -20,8 +20,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = post.meta_title || post.title;
   const description = post.meta_description || post.excerpt;
-  const image = post.og_image || post.image;
   const canonical = post.canonical_url || `https://autisable.com/blog/${slug}/`;
+  // OG image: editor's explicit upload wins, otherwise auto-generated at 1200x630.
+  // Auto-gen pulls live data so any title/featured-image change is reflected
+  // (cached for 1h at the edge — see /api/og/[slug]/route.ts).
+  const ogImage = post.og_image || `https://autisable.com/api/og/${slug}/`;
 
   // Build keywords list: focus first, then additional, then tags as fallback
   const allKeywords = [
@@ -45,13 +48,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       url: canonical,
       type: "article",
       siteName: "Autisable",
-      images: image ? [{ url: image }] : [],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: title }],
     },
     twitter: {
       card: "summary_large_image",
       title,
       description,
-      images: image ? [image] : [],
+      images: [ogImage],
     },
   };
 }
@@ -105,7 +108,7 @@ export default async function BlogPostPage({ params }: Props) {
     "@type": "Article",
     headline: post.title,
     description: post.meta_description || post.excerpt,
-    image: post.og_image || post.image || "https://autisable.com/Logo.png",
+    image: post.og_image || `https://autisable.com/api/og/${slug}/`,
     datePublished: post.date,
     dateModified: post.date_modified || post.date,
     mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
