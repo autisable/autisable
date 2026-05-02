@@ -210,16 +210,53 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({ error: "Unknown metric" }, { status: 400 });
     }
   } catch (err: unknown) {
-    // Google's GA Data API throws errors with code/details/message fields that
-    // aren't always populated as a plain Error instance. Capture whatever's
-    // available so the admin sees something actionable instead of a blank
-    // "undefined undefined: undefined" string.
-    const e = err as { message?: string; code?: number | string; details?: string; status?: string };
-    const messageParts = [e?.code, e?.status, e?.message, e?.details].filter(Boolean);
-    const msg = messageParts.length > 0
-      ? messageParts.join(" — ")
-      : (err instanceof Error ? err.message : "GA4 API error (no detail returned)");
-    console.error("[ga4] API error:", err);
+    // Google's GA Data API frequently throws an error whose `.message` is
+    // literally "undefined undefined: undefined" because of how their gRPC
+    // wrapper builds the string when the underlying response is missing
+    // expected fields. Dig into the wrapped error/cause/details for the real
+    // info, and as a last resort dump every own-property to JSON so the
+    // admin sees something actionable.
+    const e = err as Record<string, unknown> & {
+      message?: string;
+      code?: number | string;
+      details?: string;
+      reason?: string;
+      status?: string;
+      statusDetails?: unknown;
+      metadata?: unknown;
+      response?: { error?: { message?: string; status?: string } };
+      cause?: { message?: string; code?: string };
+    };
+
+    console.error("[ga4] API error (raw):", err);
+    console.error("[ga4] API error keys:", Object.getOwnPropertyNames(e));
+
+    // Try the most informative fields first
+    const responseError = e?.response?.error;
+    const candidates: Array<string | number | undefined> = [
+      responseError?.message && `${responseError.status || ""} ${responseError.message}`.trim(),
+      e?.cause?.message,
+      e?.reason,
+      e?.details,
+      typeof e?.message === "string" && !e.message.includes("undefined undefined") ? e.message : undefined,
+      e?.code !== undefined ? `code ${e.code}` : undefined,
+    ];
+    let msg = candidates.find((c) => typeof c === "string" && c.trim().length > 0) as string | undefined;
+
+    // Last resort: dump own enumerable properties so we at least see what's there
+    if (!msg) {
+      try {
+        const dump: Record<string, unknown> = {};
+        for (const key of Object.getOwnPropertyNames(e)) {
+          if (key === "stack") continue;
+          dump[key] = (e as Record<string, unknown>)[key];
+        }
+        msg = `GA4 error (raw): ${JSON.stringify(dump).slice(0, 500)}`;
+      } catch {
+        msg = "GA4 API error (no detail available)";
+      }
+    }
+
     return NextResponse.json({ error: msg, configured: true }, { status: 500 });
   }
 }
