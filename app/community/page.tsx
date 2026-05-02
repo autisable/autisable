@@ -431,6 +431,7 @@ export default function CommunityPage() {
                     <FeedActions
                       feedItemId={item.id}
                       feedItemType={item.source}
+                      feedItemOwnerId={item.user_id}
                       initialLikeCount={item.reactions_count}
                       initialReplyCount={item.replies_count}
                       currentUserId={user?.id || null}

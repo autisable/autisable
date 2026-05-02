@@ -59,7 +59,7 @@ Small, low-risk, additive items. Most don't depend on the larger feed/profile wo
 | Q4 | YouTube embed button in PostEditor toolbar | ✅ | Custom Embed node in TipTap. Parses youtu.be / youtube.com URLs into 16:9 iframe. |
 | Q5 | Podcast embed button in PostEditor toolbar | ✅ | Same custom Embed node. Accepts full `<iframe>` paste OR bare URL. Renders as fixed-height audio player. |
 | Q6 | Email notifications at pipeline stages | 🚧 | **Acknowledgement on submit done.** Approve/reject/live-link hooks need state-change detection + schema additions (submitted_by, rejection_reason). Moved to medium scope (M6). |
-| Q7 | Notifications + Followers as feed tabs (currently 404) | 📅 | Depends on feed v2 (M3). Bookmark for that batch. |
+| Q7 | Notifications + Followers as feed tabs (currently 404) | ✅ | Notifications system shipped end-to-end. Schema additions (actor_user_id/display_name/avatar_url + INSERT/DELETE RLS policies — SQL migration needed). New `app/lib/notifications.ts` fire-and-forget helper drops self-notifications. Hooked into FeedActions like + reply, FollowControls follow, and editorial-decision endpoint (server-side, mirrors the email). New `/dashboard/notifications` page — All / Unread tabs, mark-all-read, per-row mark-read on click, actor avatars + relative time, optimistic updates. Bell icon in nav header (desktop + mobile) with unread count badge. Removed the broken `/dashboard/settings` link from dashboard quick-links. |
 | Q8 | Image upload in status updates (not just GIF) | 📅 | Depends on feed v2 (M3). |
 | Q9 | Blog encouragement prompt at 300 chars in compose | 📅 | Depends on feed v2 (M3). |
 

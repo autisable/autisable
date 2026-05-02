@@ -86,7 +86,8 @@ export default function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [navItems, setNavItems] = useState(fallbackNavItems);
   const [scrolled, setScrolled] = useState(false);
-  const [user, setUser] = useState<{ email?: string } | null>(null);
+  const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [socialLinks, setSocialLinks] = useState(
     SOCIAL_DEFINITIONS.filter((s) => s.fallback).map((s) => ({ label: s.label, href: s.fallback, icon: s.icon }))
   );
@@ -130,7 +131,17 @@ export default function Header() {
 
     const checkAuth = async () => {
       const { data: { user: u } } = await supabase.auth.getUser();
-      if (u) setUser({ email: u.email ?? undefined });
+      if (u) {
+        setUser({ id: u.id, email: u.email ?? undefined });
+        // Fetch unread notification count for the bell badge. Cheap (head=true,
+        // no rows returned).
+        const { count } = await supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", u.id)
+          .eq("is_read", false);
+        setUnreadCount(count || 0);
+      }
     };
 
     void loadNavLinks();
@@ -216,12 +227,28 @@ export default function Header() {
             </div>
             <div className="w-px h-5 bg-zinc-200" />
             {user ? (
-              <Link
-                href="/dashboard"
-                className="text-sm font-medium text-brand-blue hover:text-brand-blue-dark transition-colors"
-              >
-                Dashboard
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  href="/dashboard/notifications"
+                  className="relative p-1.5 text-zinc-500 hover:text-brand-blue transition-colors"
+                  aria-label={unreadCount > 0 ? `${unreadCount} unread notifications` : "Notifications"}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-brand-red text-white text-[10px] font-semibold flex items-center justify-center">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className="text-sm font-medium text-brand-blue hover:text-brand-blue-dark transition-colors"
+                >
+                  Dashboard
+                </Link>
+              </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Link
@@ -299,13 +326,27 @@ export default function Header() {
             )}
             <div className="pt-4 border-t border-zinc-100 space-y-2">
               {user ? (
-                <Link
-                  href="/dashboard"
-                  onClick={() => setMobileOpen(false)}
-                  className="block px-3 py-2.5 text-base font-medium text-brand-blue"
-                >
-                  Dashboard
-                </Link>
+                <>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileOpen(false)}
+                    className="block px-3 py-2.5 text-base font-medium text-brand-blue"
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    href="/dashboard/notifications"
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center justify-between px-3 py-2.5 text-base font-medium text-zinc-700 hover:text-brand-blue hover:bg-brand-blue-light rounded-lg transition-colors"
+                  >
+                    <span>Notifications</span>
+                    {unreadCount > 0 && (
+                      <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-brand-red text-white text-xs font-semibold flex items-center justify-center">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                  </Link>
+                </>
               ) : (
                 <div className="flex gap-2 px-3">
                   <Link

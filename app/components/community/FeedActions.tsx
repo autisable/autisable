@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
 import { relativeTime } from "@/app/lib/relativeTime";
+import { createNotification } from "@/app/lib/notifications";
 
 const supabase = getSupabase();
 
@@ -21,6 +22,9 @@ interface Reply {
 interface Props {
   feedItemId: string;
   feedItemType: FeedItemType;
+  // The owner of this feed item — needed to send them a notification when
+  // someone likes/replies. Optional because some legacy callers may not pass it.
+  feedItemOwnerId?: string;
   initialLikeCount: number;
   initialReplyCount: number;
   currentUserId: string | null;
@@ -36,6 +40,7 @@ interface Props {
 export default function FeedActions({
   feedItemId,
   feedItemType,
+  feedItemOwnerId,
   initialLikeCount,
   initialReplyCount,
   currentUserId,
@@ -106,6 +111,17 @@ export default function FeedActions({
         setLiked(false);
         setLikeCount((c) => Math.max(0, c - 1));
         setActionError(humanizeError(error.message));
+      } else if (feedItemOwnerId) {
+        // Fire-and-forget notification to the post owner
+        void createNotification({
+          recipientUserId: feedItemOwnerId,
+          type: "like",
+          title: `${currentUserDisplayName || "Someone"} liked your post`,
+          link: "/community",
+          actorUserId: currentUserId,
+          actorDisplayName: currentUserDisplayName || undefined,
+          actorAvatarUrl: currentUserAvatarUrl || null,
+        });
       }
     }
 
@@ -167,6 +183,20 @@ export default function FeedActions({
       setReplies((prev) => [...prev, newReply]);
       setReplyCount((c) => c + 1);
       setReplyDraft("");
+
+      if (feedItemOwnerId) {
+        const preview = text.length > 80 ? text.slice(0, 80) + "…" : text;
+        void createNotification({
+          recipientUserId: feedItemOwnerId,
+          type: "reply",
+          title: `${currentUserDisplayName || "Someone"} replied to your post`,
+          message: preview,
+          link: "/community",
+          actorUserId: currentUserId,
+          actorDisplayName: currentUserDisplayName || undefined,
+          actorAvatarUrl: currentUserAvatarUrl || null,
+        });
+      }
     } else if (error) {
       setActionError(humanizeError(error.message));
     }

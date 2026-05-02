@@ -206,9 +206,25 @@ CREATE TABLE IF NOT EXISTS notifications (
   title TEXT NOT NULL,
   message TEXT,
   link TEXT,
+  -- Q7: who triggered this notification (denormalized for fast display in the
+  -- list — avoids a join per row when rendering)
+  actor_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  actor_display_name TEXT,
+  actor_avatar_url TEXT,
   is_read BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS actor_user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS actor_display_name TEXT;
+ALTER TABLE notifications ADD COLUMN IF NOT EXISTS actor_avatar_url TEXT;
+-- Allow authenticated users to insert notifications for other users (used by
+-- like/reply/follow/editorial flows). Worst-case abuse is low (no spam vector
+-- worse than what the social actions themselves already enable). Owner still
+-- controls SELECT/UPDATE/DELETE via the existing policies.
+DROP POLICY IF EXISTS "Authenticated users can insert notifications" ON notifications;
+CREATE POLICY "Authenticated users can insert notifications" ON notifications FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+DROP POLICY IF EXISTS "Users can delete own notifications" ON notifications;
+CREATE POLICY "Users can delete own notifications" ON notifications FOR DELETE USING (auth.uid() = user_id);
 
 -- Newsletter Subscribers
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (

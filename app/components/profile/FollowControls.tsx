@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
+import { createNotification } from "@/app/lib/notifications";
 
 const supabase = getSupabase();
 
@@ -27,6 +28,8 @@ export default function FollowControls({
   initialFollowingCount,
 }: Props) {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string | null>(null);
+  const [currentUserAvatar, setCurrentUserAvatar] = useState<string | null>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [followerCount, setFollowerCount] = useState(initialFollowerCount);
   const [busy, setBusy] = useState(false);
@@ -38,14 +41,24 @@ export default function FollowControls({
       if (user) {
         setCurrentUserId(user.id);
         if (user.id !== profileUserId) {
-          // Check if already following
-          const { data } = await supabase
-            .from("follows")
-            .select("id")
-            .eq("follower_id", user.id)
-            .eq("following_id", profileUserId)
-            .maybeSingle();
-          setIsFollowing(!!data);
+          // Need the actor's name + avatar for the follow notification, plus
+          // checking the existing follow state. Single batched grab.
+          const [followRes, profileRes] = await Promise.all([
+            supabase
+              .from("follows")
+              .select("id")
+              .eq("follower_id", user.id)
+              .eq("following_id", profileUserId)
+              .maybeSingle(),
+            supabase
+              .from("user_profiles")
+              .select("display_name, avatar_url")
+              .eq("id", user.id)
+              .single(),
+          ]);
+          setIsFollowing(!!followRes.data);
+          setCurrentUserName(profileRes.data?.display_name || null);
+          setCurrentUserAvatar(profileRes.data?.avatar_url || null);
         }
       }
       setChecked(true);
@@ -81,6 +94,17 @@ export default function FollowControls({
       if (error) {
         setIsFollowing(false);
         setFollowerCount((c) => Math.max(0, c - 1));
+      } else {
+        // Notify the followed user
+        void createNotification({
+          recipientUserId: profileUserId,
+          type: "follow",
+          title: `${currentUserName || "Someone"} started following you`,
+          link: `/member/${currentUserId}`,
+          actorUserId: currentUserId,
+          actorDisplayName: currentUserName || undefined,
+          actorAvatarUrl: currentUserAvatar,
+        });
       }
     }
 

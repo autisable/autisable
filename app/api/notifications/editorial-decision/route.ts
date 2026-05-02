@@ -93,10 +93,44 @@ export async function POST(req: NextRequest) {
 
   if (sendError) {
     console.error("[editorial-decision] Resend error:", sendError);
-    return NextResponse.json({ ok: false, error: sendError.message }, { status: 500 });
+    // Still try to write the in-app notification — email failure shouldn't
+    // strand the user without any signal at all.
   }
 
-  return NextResponse.json({ ok: true, sent: true });
+  // In-app notification (Q7): mirror the email so the member also sees this
+  // in their notifications list when they next log in.
+  const { title: notifTitle, message: notifMessage, link } = buildInAppNotification(action, post.title || "your post", post.slug || "");
+  await supabaseAdmin.from("notifications").insert({
+    user_id: post.submitted_by_user_id,
+    type: `editorial_${action}`,
+    title: notifTitle,
+    message: notifMessage,
+    link,
+  });
+
+  return NextResponse.json({ ok: true, sent: !sendError });
+}
+
+function buildInAppNotification(action: Action, title: string, slug: string) {
+  if (action === "approved") {
+    return {
+      title: "Your post was approved",
+      message: `"${title}" is queued for publication.`,
+      link: "/dashboard/journal",
+    };
+  }
+  if (action === "rejected") {
+    return {
+      title: "Your post needs revisions",
+      message: `An editor sent "${title}" back with notes.`,
+      link: "/dashboard/journal",
+    };
+  }
+  return {
+    title: "Your post is live",
+    message: `"${title}" is now published.`,
+    link: `/blog/${slug}/`,
+  };
 }
 
 function buildEmail(action: Action, name: string, title: string, slug: string, reason: string | null) {
