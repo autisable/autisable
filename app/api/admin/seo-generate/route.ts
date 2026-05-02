@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { requireAdmin } from "@/app/lib/adminAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// Strip HTML and collapse whitespace so we hand Claude clean prose, not markup.
+// Strip HTML and collapse whitespace so we hand the model clean prose, not markup.
 function stripHtml(html: string): string {
   return html
     .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -35,9 +35,9 @@ export async function POST(req: NextRequest) {
   const authError = await requireAdmin(req);
   if (authError) return authError;
 
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
-      { error: "Server misconfigured: ANTHROPIC_API_KEY not set" },
+      { error: "Server misconfigured: OPENAI_API_KEY not set" },
       { status: 500 }
     );
   }
@@ -70,20 +70,23 @@ export async function POST(req: NextRequest) {
     .filter(Boolean)
     .join("\n\n");
 
-  const client = new Anthropic();
+  const client = new OpenAI();
 
   try {
-    const response = await client.messages.create({
-      model: "claude-opus-4-7",
-      max_tokens: 1024,
-      thinking: { type: "adaptive" },
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: userPrompt }],
-      tools: [
-        {
-          name: "save_seo",
-          description: "Save the generated SEO metadata for this blog post.",
-          input_schema: {
+    // Structured outputs: OpenAI guarantees the response matches our schema,
+    // so no defensive parsing of free-form text needed.
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "seo_metadata",
+          strict: true,
+          schema: {
             type: "object",
             properties: {
               meta_title: {
@@ -105,21 +108,21 @@ export async function POST(req: NextRequest) {
               },
             },
             required: ["meta_title", "meta_description", "focus_keyword", "keywords"],
+            additionalProperties: false,
           },
         },
-      ],
-      tool_choice: { type: "tool", name: "save_seo" },
+      },
     });
 
-    const toolUse = response.content.find((b) => b.type === "tool_use");
-    if (!toolUse || toolUse.type !== "tool_use") {
+    const raw = completion.choices[0]?.message?.content;
+    if (!raw) {
       return NextResponse.json(
         { error: "Model did not return SEO metadata" },
         { status: 502 }
       );
     }
 
-    const seo = toolUse.input as {
+    const seo = JSON.parse(raw) as {
       meta_title: string;
       meta_description: string;
       focus_keyword: string;
@@ -135,13 +138,13 @@ export async function POST(req: NextRequest) {
         keywords: Array.isArray(seo.keywords) ? seo.keywords.filter((k) => typeof k === "string") : [],
       },
       usage: {
-        input_tokens: response.usage.input_tokens,
-        output_tokens: response.usage.output_tokens,
+        input_tokens: completion.usage?.prompt_tokens ?? 0,
+        output_tokens: completion.usage?.completion_tokens ?? 0,
       },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("[seo-generate] Anthropic call failed:", err);
+    console.error("[seo-generate] OpenAI call failed:", err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

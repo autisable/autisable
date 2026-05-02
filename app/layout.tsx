@@ -17,6 +17,9 @@ const lora = Lora({
 });
 
 export const metadata: Metadata = {
+  // Required for relative OG/Twitter image URLs to resolve to absolute URLs
+  // when crawlers (Threads, Facebook, X, LinkedIn) fetch metadata.
+  metadataBase: new URL("https://autisable.com"),
   title: {
     default: "Autisable — Community, Stories & Resources for the Autism Community",
     template: "%s | Autisable",
@@ -31,11 +34,13 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     siteName: "Autisable",
-    images: [{ url: "/Logo.png", width: 600, height: 160, alt: "Autisable" }],
+    // 1200×1200 square — replaces the prior 600×160 wordmark which was being
+    // rejected by social crawlers (wrong aspect ratio).
+    images: [{ url: "/Logo1.jpeg", width: 1200, height: 1200, alt: "Autisable" }],
   },
   twitter: {
     card: "summary_large_image",
-    images: ["/Logo.png"],
+    images: ["/Logo1.jpeg"],
   },
 };
 
