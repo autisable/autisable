@@ -12,6 +12,7 @@ interface FeedItem {
   id: string;
   user_id: string;
   display_name: string;
+  avatar_url?: string | null;
   title?: string | null;
   content: string;
   image_url?: string | null;
@@ -56,7 +57,7 @@ const previewFeed = [
 
 export default function CommunityPage() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [user, setUser] = useState<{ id: string; display_name: string | null } | null>(null);
+  const [user, setUser] = useState<{ id: string; display_name: string | null; avatar_url: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<FilterTab>("all");
   const [hasMore, setHasMore] = useState(true);
@@ -114,28 +115,46 @@ export default function CommunityPage() {
         replies_count: a.replies_count || 0,
       }));
 
-      // Resolve display names for journal authors (single batched lookup).
-      const journalUserIds = [...new Set((journalsRes.data || []).map((j) => j.user_id))];
-      const { data: profiles } = journalUserIds.length > 0
-        ? await supabase.from("user_profiles").select("id, display_name").in("id", journalUserIds)
-        : { data: [] as { id: string; display_name: string }[] };
-      const nameById = new Map((profiles || []).map((p) => [p.id, p.display_name]));
+      // Resolve display names + avatars for everyone shown in the feed (both
+      // activity_feed posters and journal authors). One batched lookup so we
+      // don't fan out per-card.
+      const allUserIds = [
+        ...new Set([
+          ...activityItems.map((a) => a.user_id),
+          ...(journalsRes.data || []).map((j) => j.user_id),
+        ]),
+      ];
+      const { data: profiles } = allUserIds.length > 0
+        ? await supabase.from("user_profiles").select("id, display_name, avatar_url").in("id", allUserIds)
+        : { data: [] as { id: string; display_name: string; avatar_url: string | null }[] };
+      const profileById = new Map(
+        (profiles || []).map((p) => [p.id, { display_name: p.display_name, avatar_url: p.avatar_url }])
+      );
+
+      // Hydrate avatars onto activity items (display_name was already on the row)
+      activityItems.forEach((a) => {
+        a.avatar_url = profileById.get(a.user_id)?.avatar_url || null;
+      });
 
       const journalItems: FeedItem[] = (journalsRes.data || [])
         // Followers visibility: until follow system ships, show only own entries
         .filter((j) => j.visibility === "all_members" || j.user_id === currentUserId)
-        .map((j) => ({
-          id: j.id,
-          user_id: j.user_id,
-          display_name: nameById.get(j.user_id) || "Member",
-          title: j.title || null,
-          content: j.content || "",
-          type: "journal",
-          source: "journal",
-          created_at: j.created_at,
-          reactions_count: 0,
-          replies_count: 0,
-        }));
+        .map((j) => {
+          const profile = profileById.get(j.user_id);
+          return {
+            id: j.id,
+            user_id: j.user_id,
+            display_name: profile?.display_name || "Member",
+            avatar_url: profile?.avatar_url || null,
+            title: j.title || null,
+            content: j.content || "",
+            type: "journal" as const,
+            source: "journal" as const,
+            created_at: j.created_at,
+            reactions_count: 0,
+            replies_count: 0,
+          };
+        });
 
       const merged = [...activityItems, ...journalItems]
         .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -197,10 +216,14 @@ export default function CommunityPage() {
 
       const { data: meProfile } = await supabase
         .from("user_profiles")
-        .select("display_name")
+        .select("display_name, avatar_url")
         .eq("id", u.id)
         .single();
-      setUser({ id: u.id, display_name: meProfile?.display_name || null });
+      setUser({
+        id: u.id,
+        display_name: meProfile?.display_name || null,
+        avatar_url: meProfile?.avatar_url || null,
+      });
 
       const { items, reachedEnd } = await loadPage(null, tab, u.id);
       setFeed(items);
@@ -314,6 +337,7 @@ export default function CommunityPage() {
           <FeedCompose
             currentUserId={user.id}
             currentUserDisplayName={user.display_name || "Member"}
+            currentUserAvatarUrl={user.avatar_url}
             onPosted={handlePosted}
           />
 
@@ -355,9 +379,18 @@ export default function CommunityPage() {
                     <div className="flex items-center gap-3 mb-3">
                       <Link
                         href={`/member/${item.user_id}`}
-                        className="w-10 h-10 rounded-full bg-brand-blue-light text-brand-blue flex items-center justify-center text-sm font-bold hover:opacity-80"
+                        className="w-10 h-10 rounded-full bg-brand-blue-light text-brand-blue flex items-center justify-center text-sm font-bold hover:opacity-80 overflow-hidden shrink-0"
                       >
-                        {item.display_name?.charAt(0).toUpperCase() || "?"}
+                        {item.avatar_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.avatar_url}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          item.display_name?.charAt(0).toUpperCase() || "?"
+                        )}
                       </Link>
                       <div>
                         <Link href={`/member/${item.user_id}`} className="text-sm font-semibold text-zinc-900 hover:text-brand-blue">

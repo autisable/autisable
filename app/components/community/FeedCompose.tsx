@@ -10,11 +10,13 @@ const supabase = getSupabase();
 interface Props {
   currentUserId: string;
   currentUserDisplayName: string;
+  currentUserAvatarUrl?: string | null;
   // Bubble newly-posted item back to the parent feed without a refetch
   onPosted: (item: {
     id: string;
     user_id: string;
     display_name: string;
+    avatar_url: string | null;
     content: string;
     image_url: string | null;
     type: "post";
@@ -29,7 +31,7 @@ const MAX_LENGTH = 2000;
 // Q9: at this length we suggest the user might want a full blog post instead.
 const BLOG_PROMPT_THRESHOLD = 300;
 
-export default function FeedCompose({ currentUserId, currentUserDisplayName, onPosted }: Props) {
+export default function FeedCompose({ currentUserId, currentUserDisplayName, currentUserAvatarUrl, onPosted }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -92,6 +94,7 @@ export default function FeedCompose({ currentUserId, currentUserDisplayName, onP
       id: data.id,
       user_id: data.user_id,
       display_name: data.display_name,
+      avatar_url: currentUserAvatarUrl || null,
       content: data.content,
       image_url: data.image_url,
       type: "post",
