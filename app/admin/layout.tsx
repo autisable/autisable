@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import AdminGate from "./AdminGate";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,7 +18,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         </div>
       </div>
-      {children}
+      <AdminGate>{children}</AdminGate>
     </>
   );
 }

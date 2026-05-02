@@ -187,6 +187,8 @@ export default function EditJournalPage() {
       author_name: profile?.display_name || null,
       // Track who submitted this — used by M6 to route approve/reject/published emails
       submitted_by_user_id: userId,
+      // L7: link back to source so editorial decisions can sync submission_status
+      source_journal_id: entry.id,
     });
 
     // 3. Send acknowledgement email — fire-and-forget; don't block on it

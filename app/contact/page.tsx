@@ -102,8 +102,25 @@ export default function ContactPage() {
             <option value="accessibility">Accessibility Feedback</option>
             <option value="privacy">Privacy / Data Request</option>
             <option value="legal">Legal / Moderation Appeal</option>
+            <option value="author_post_removal">Author: Request post removal</option>
+            <option value="author_account_removal">Author: Leave Autisable / remove my account</option>
             <option value="other">Other</option>
           </select>
+          {(form.reason === "author_post_removal" || form.reason === "author_account_removal") && (
+            <div className="mt-3 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-zinc-700">
+              {form.reason === "author_post_removal" ? (
+                <>
+                  <p className="font-medium text-zinc-900 mb-1">Heads up before you submit</p>
+                  <p>In your message below, please include the <strong>title and URL</strong> of each post you&apos;d like removed, and a brief reason. We&apos;ll respond within 5 business days. If a post is currently the source of harm or harassment, mention that and we&apos;ll prioritize.</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium text-zinc-900 mb-1">Heads up before you submit</p>
+                  <p>Please use the email tied to your Autisable account so we can verify it&apos;s really you. In your message, let us know whether you&apos;d like your <strong>past posts kept</strong> (with author byline retained), <strong>made anonymous</strong>, or <strong>fully removed</strong>. We&apos;ll confirm before doing anything irreversible.</p>
+                </>
+              )}
+            </div>
+          )}
         </div>
         <div>
           <label htmlFor="message" className="block text-sm font-medium text-zinc-700 mb-1">Message</label>

@@ -50,6 +50,11 @@ export async function POST(req: NextRequest) {
   if (resendKey) {
     try {
       const resend = new Resend(resendKey);
+      // Author-driven removal requests should jump the queue visually in the
+      // inbox — prefix subject so they aren't lost among general inquiries.
+      const isAuthorRequest = reason === "author_post_removal" || reason === "author_account_removal";
+      const subjectPrefix = isAuthorRequest ? "[ACTION NEEDED — Author]" : "[Autisable Contact]";
+
       const { error: sendError } = await resend.emails.send({
         // Resend verified the apex `autisable.com`. The `send.*` DNS records
         // (MX/SPF) are Resend's auxiliary infrastructure for bounce reports
@@ -58,7 +63,7 @@ export async function POST(req: NextRequest) {
         from: "Autisable <noreply@autisable.com>",
         to: process.env.CONTACT_EMAIL || "joel@autisable.com",
         replyTo: email,
-        subject: `[Autisable Contact] ${reason || "General"} — ${firstName} ${lastName}`,
+        subject: `${subjectPrefix} ${reason || "General"} — ${firstName} ${lastName}`,
         html: `
           <h2>New Contact Form Submission</h2>
           <p><strong>Name:</strong> ${firstName} ${lastName}</p>
@@ -66,6 +71,7 @@ export async function POST(req: NextRequest) {
           <p><strong>Reason:</strong> ${reason || "Not specified"}</p>
           <p><strong>Message:</strong></p>
           <p>${message.replace(/\n/g, "<br>")}</p>
+          ${isAuthorRequest ? `<hr><p style="color:#b45309;"><strong>This is an author request.</strong> Review at <a href="https://autisable.com/admin/contact-messages">/admin/contact-messages</a> and mark resolved when actioned.</p>` : ""}
         `,
       });
       if (sendError) {

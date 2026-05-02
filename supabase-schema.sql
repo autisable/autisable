@@ -80,6 +80,11 @@ CREATE TABLE IF NOT EXISTS blog_posts (
 -- M6: also add as ALTERs so existing deployments pick them up without recreating the table
 ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS submitted_by_user_id UUID REFERENCES auth.users(id);
 ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+-- L7: trace blog posts back to the journal entry that was submitted to create them.
+-- Used by the editorial-decision flow to sync submission_status back so the
+-- author's journal entry unlocks (returned/published) instead of being stuck
+-- in "submitted" forever after an editor acts.
+ALTER TABLE blog_posts ADD COLUMN IF NOT EXISTS source_journal_id UUID REFERENCES journal_entries(id) ON DELETE SET NULL;
 
 -- Podcast Episodes
 CREATE TABLE IF NOT EXISTS podcast_episodes (
@@ -131,12 +136,14 @@ CREATE TABLE IF NOT EXISTS activity_feed (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name TEXT NOT NULL,
   content TEXT NOT NULL,
+  image_url TEXT, -- L2/Q8: optional image attached to a status update
   type TEXT DEFAULT 'post' CHECK (type IN ('post', 'journal')),
   source_id UUID,
   reactions_count INT DEFAULT 0,
   replies_count INT DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE activity_feed ADD COLUMN IF NOT EXISTS image_url TEXT;
 
 -- Follows
 CREATE TABLE IF NOT EXISTS follows (
@@ -215,8 +222,13 @@ CREATE TABLE IF NOT EXISTS contact_messages (
   email TEXT NOT NULL,
   reason TEXT,
   message TEXT NOT NULL,
+  resolved_at TIMESTAMPTZ, -- M5: when an admin marked this as actioned (null = open)
+  resolved_by_user_id UUID REFERENCES auth.users(id),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE contact_messages ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ;
+ALTER TABLE contact_messages ADD COLUMN IF NOT EXISTS resolved_by_user_id UUID REFERENCES auth.users(id);
+CREATE INDEX IF NOT EXISTS idx_contact_messages_open ON contact_messages(created_at DESC) WHERE resolved_at IS NULL;
 
 -- Authors (separate from user_profiles; created during WP migration via scripts/migrate-authors.ts)
 -- blog_posts.author_id and rss_feeds.author_id both reference this table.

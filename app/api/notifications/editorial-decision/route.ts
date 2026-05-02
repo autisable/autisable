@@ -33,12 +33,27 @@ export async function POST(req: NextRequest) {
 
   const { data: post } = await supabaseAdmin
     .from("blog_posts")
-    .select("title, slug, submitted_by_user_id")
+    .select("title, slug, submitted_by_user_id, source_journal_id")
     .eq("id", postId)
     .single();
 
   if (!post) {
     return NextResponse.json({ error: "Post not found" }, { status: 404 });
+  }
+
+  // L7: when a blog post originated from a member's journal entry, mirror the
+  // editorial decision back so the source journal updates from "submitted" to
+  // the right state. Without this, rejected entries stay locked forever and
+  // approved/published entries don't show their final status to the author.
+  if (post.source_journal_id) {
+    const journalStatus =
+      action === "approved" ? "approved"
+      : action === "published" ? "published"
+      : "returned"; // rejected → unlock so the member can edit and resubmit
+    await supabaseAdmin
+      .from("journal_entries")
+      .update({ submission_status: journalStatus, updated_at: new Date().toISOString() })
+      .eq("id", post.source_journal_id);
   }
 
   // Admin-created posts have no submitter — nothing to email
