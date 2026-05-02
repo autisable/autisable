@@ -45,7 +45,19 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
       .order("display_name")
       .limit(1000)
       .then(({ data }) => {
-        if (data) setAuthors(data);
+        if (!data) return;
+        setAuthors(data);
+        // Imported (WordPress) posts have author_name but no author_id, so the
+        // dropdown shows "Select author" even though the byline is set. Match
+        // by name on first load so the editor reflects what readers actually
+        // see, and so the next save persists the link.
+        setPost((prev) => {
+          if (prev.author_id || !prev.author_name) return prev;
+          const match = data.find(
+            (a) => a.display_name?.toLowerCase().trim() === (prev.author_name as string).toLowerCase().trim()
+          );
+          return match ? { ...prev, author_id: match.id } : prev;
+        });
       });
   }, []);
 

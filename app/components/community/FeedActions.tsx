@@ -48,6 +48,7 @@ export default function FeedActions({
   const [repliesLoaded, setRepliesLoaded] = useState(false);
   const [replyDraft, setReplyDraft] = useState("");
   const [replyBusy, setReplyBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Did current user like this?
   useEffect(() => {
@@ -72,6 +73,7 @@ export default function FeedActions({
   const toggleLike = async () => {
     if (!currentUserId || likeBusy) return;
     setLikeBusy(true);
+    setActionError(null);
 
     if (liked) {
       // Optimistic
@@ -87,6 +89,7 @@ export default function FeedActions({
       if (error) {
         setLiked(true);
         setLikeCount((c) => c + 1);
+        setActionError(humanizeError(error.message));
       }
     } else {
       setLiked(true);
@@ -97,6 +100,7 @@ export default function FeedActions({
       if (error) {
         setLiked(false);
         setLikeCount((c) => Math.max(0, c - 1));
+        setActionError(humanizeError(error.message));
       }
     }
 
@@ -121,6 +125,7 @@ export default function FeedActions({
     const text = replyDraft.trim();
     if (!text || !currentUserId || replyBusy) return;
     setReplyBusy(true);
+    setActionError(null);
 
     const { data, error } = await supabase
       .from("feed_replies")
@@ -138,8 +143,24 @@ export default function FeedActions({
       setReplies((prev) => [...prev, data as Reply]);
       setReplyCount((c) => c + 1);
       setReplyDraft("");
+    } else if (error) {
+      setActionError(humanizeError(error.message));
     }
     setReplyBusy(false);
+  };
+
+  // Translate Postgres errors into something a member can act on. The most
+  // common case is the migration not having been run yet — surface that
+  // explicitly so it's not mistaken for a generic "buttons don't work" bug.
+  const humanizeError = (msg: string): string => {
+    const lower = msg.toLowerCase();
+    if (lower.includes("does not exist") || lower.includes("relation") && lower.includes("does not exist")) {
+      return "Likes/replies aren't set up yet — admin needs to run the latest database migration.";
+    }
+    if (lower.includes("row-level security") || lower.includes("permission denied")) {
+      return "Permission denied. Try logging out and back in.";
+    }
+    return msg;
   };
 
   return (
@@ -169,6 +190,12 @@ export default function FeedActions({
           {replyCount} {replyCount === 1 ? "reply" : "replies"}
         </button>
       </div>
+
+      {actionError && (
+        <p className="mt-2 text-xs text-brand-red bg-red-50 border border-red-100 rounded-md px-3 py-2">
+          {actionError}
+        </p>
+      )}
 
       {showReplies && (
         <div className="mt-4 pl-4 border-l-2 border-zinc-100 space-y-3">
