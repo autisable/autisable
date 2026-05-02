@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
+import ImageUpload from "@/app/components/ImageUpload";
 
 const supabase = getSupabase();
 
@@ -187,21 +188,22 @@ export default function EditProfilePage() {
             <p className="mt-1 text-xs text-zinc-400">{form.bio.length}/500</p>
           </div>
 
-          <Field
-            label="Avatar URL"
-            value={form.avatar_url}
-            onChange={(v) => update("avatar_url", v)}
-            placeholder="https://… (image URL — recommended 400×400 square)"
-          />
-          <Field
-            label="Cover photo URL"
-            value={form.cover_photo_url}
-            onChange={(v) => update("cover_photo_url", v)}
-            placeholder="https://… (image URL — recommended 1200×300 banner)"
-          />
-          <p className="text-xs text-zinc-400 -mt-2">
-            File upload coming soon. For now, paste a public image URL.
-          </p>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">Avatar</label>
+            <ImageUpload
+              kind="avatar"
+              currentUrl={form.avatar_url}
+              onUploaded={(url) => update("avatar_url", url)}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">Cover photo</label>
+            <ImageUpload
+              kind="cover"
+              currentUrl={form.cover_photo_url}
+              onUploaded={(url) => update("cover_photo_url", url)}
+            />
+          </div>
         </section>
 
         {/* Self-ID */}

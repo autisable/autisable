@@ -141,6 +141,10 @@ CREATE TABLE IF NOT EXISTS follows (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   UNIQUE(follower_id, following_id)
 );
+ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Follows are publicly readable" ON follows FOR SELECT USING (true);
+CREATE POLICY "Members can follow on their own behalf" ON follows FOR INSERT WITH CHECK (auth.uid() = follower_id);
+CREATE POLICY "Members can unfollow on their own behalf" ON follows FOR DELETE USING (auth.uid() = follower_id);
 
 -- Notifications
 CREATE TABLE IF NOT EXISTS notifications (

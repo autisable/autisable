@@ -82,7 +82,7 @@ Small, low-risk, additive items. Most don't depend on the larger feed/profile wo
 
 | # | Item | Status | Notes |
 |---|---|---|---|
-| L1 | Membership profile hub (LinkedIn-style) | 🚧 MVP | `/dashboard/profile` edit page (display name, bio, avatar URL, cover URL, self-ID tags, website + 6 socials, save bar). `/member/[id]` public view with cover banner, avatar, name, member-since, role, self-ID chips, bio, tabbed activity (Posts / About / Followers placeholder), sidebar with stats + socials. **File upload UI for avatar/cover** is L1.2 (URLs only for now). **Followers** is L1.3 — placeholder shown. SQL migration adds `cover_photo_url` + `self_id_tags[]` to user_profiles. |
+| L1 | Membership profile hub (LinkedIn-style) | ✅ | Full hub with avatar/cover image upload (Supabase Storage via `/api/upload/profile-image`), 4 tabs (Posts / Journal / About / Followers), Follow/Unfollow with optimistic UI, real follower counts, followers list, journal tab visible only to owner, self-ID tag chips, sidebar with FollowControls + stats + socials shortcut. Vivid brand-gradient cover when no cover photo set. Avatar properly z-stacked above cover. |
 | L2 | Community feed v2 (chronological, paginated, all content types, compose, filter tabs) | ⬜ | Includes Q7/Q8/Q9 dependencies. |
 | L3 | Podcasts page redesign — three-show card grid + per-show detail pages | ✅ | Three-card grid with show art (gradient placeholder until Joel ships real art), host attribution, recent episodes (internal source for Autisable Dads via `podcast_episodes`), "More about [show]" CTA → internal detail page, external subscribe CTA. Below the cards: related blog posts grouped per show, matched by tag. Per-show detail pages enriched with longer About copy, multi-platform Subscribe block, full episode list (internal) or "where to listen" CTA (external), and related posts grid. |
 | L4 | SEO automation pipeline (per D2 decision) | ⬜ | High-priority per Joel. |
@@ -99,6 +99,7 @@ Small, low-risk, additive items. Most don't depend on the larger feed/profile wo
 | F1 | Membership dashboard enhancement (post-stabilization analytics) | 📅 |
 | F2 | AI-assisted moderation prompt (guideline detection) | 📅 |
 | F3 | AISEO citation audit (structured data + clear writing pass) | 📅 Sub-task of L4 |
+| F7 | Wire community feed Like + Reply buttons (Joel reported buttons unresponsive) | ⬜ Next | Currently visual placeholders. Need reactions table or counter + comments thread. |
 | F4 | ~~Real podcast show art~~ | ✅ Joel says keep gradient colors as-is. Closed. |
 | F5 | RSS feed pulling for Hope Saves the Day & The Autism Dad episodes | 📅 | Currently external shows just link out to native platforms. |
 | F6 | Tag existing posts with show slugs | ✅ Joel will handle editorially via the Tags admin. |

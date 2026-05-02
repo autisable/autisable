@@ -3,6 +3,9 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { supabaseAdmin } from "@/app/lib/supabase";
+import FollowControls from "@/app/components/profile/FollowControls";
+import FollowersList from "@/app/components/profile/FollowersList";
+import JournalTab from "@/app/components/profile/JournalTab";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 60;
@@ -37,7 +40,7 @@ const SOCIAL_FIELDS = [
   { key: "social_tiktok", label: "TikTok" },
 ] as const;
 
-const TABS = ["Posts", "About", "Followers"] as const;
+const TABS = ["Posts", "Journal", "About", "Followers"] as const;
 type Tab = typeof TABS[number];
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -67,15 +70,29 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
 
   if (!profile || profile.status !== "active") notFound();
 
-  // Posts: blog_posts authored under the same display name (current author_id mapping
-  // is via authors.display_name; this is the most reliable join until we unify).
-  const { data: posts } = await supabaseAdmin
-    .from("blog_posts")
-    .select("slug, title, excerpt, image, date")
-    .eq("is_published", true)
-    .eq("author_name", profile.display_name)
-    .order("date", { ascending: false })
-    .limit(20);
+  // Posts authored by this member (current join is via author_name match — most
+  // reliable until we unify authors/user_profiles).
+  const [postsRes, followerCountRes, followingCountRes] = await Promise.all([
+    supabaseAdmin
+      .from("blog_posts")
+      .select("slug, title, excerpt, image, date")
+      .eq("is_published", true)
+      .eq("author_name", profile.display_name)
+      .order("date", { ascending: false })
+      .limit(20),
+    supabaseAdmin
+      .from("follows")
+      .select("id", { count: "exact", head: true })
+      .eq("following_id", id),
+    supabaseAdmin
+      .from("follows")
+      .select("id", { count: "exact", head: true })
+      .eq("follower_id", id),
+  ]);
+
+  const posts = postsRes.data || [];
+  const followerCount = followerCountRes.count || 0;
+  const followingCount = followingCountRes.count || 0;
 
   const memberSince = new Date(profile.created_at).toLocaleDateString("en-US", {
     month: "long",
@@ -87,12 +104,14 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
     .filter((f) => f.url);
 
   const tags: string[] = Array.isArray(profile.self_id_tags) ? profile.self_id_tags : [];
+  const firstName = profile.display_name?.split(" ")[0];
 
   return (
     <div>
-      {/* Cover */}
+      {/* Cover banner — vivid Autisable gradient when no cover photo set, so it
+          reads as an intentional brand banner rather than an empty gray block. */}
       <div
-        className="w-full h-48 sm:h-64 bg-gradient-to-br from-brand-blue-light to-brand-orange-light relative"
+        className="w-full h-44 sm:h-64 bg-gradient-to-br from-brand-blue via-brand-blue-light to-brand-orange-light"
         style={
           profile.cover_photo_url
             ? { backgroundImage: `url(${profile.cover_photo_url})`, backgroundSize: "cover", backgroundPosition: "center" }
@@ -101,9 +120,9 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
       />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Identity row — avatar overlapping cover */}
-        <div className="-mt-16 sm:-mt-20 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6 mb-8">
-          <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white bg-zinc-200 overflow-hidden shrink-0 shadow-md">
+        {/* Identity row — avatar overlapping cover, z-10 keeps it stacked above */}
+        <div className="relative z-10 -mt-16 sm:-mt-20 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6 mb-8">
+          <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white bg-white overflow-hidden shrink-0 shadow-md">
             {profile.avatar_url ? (
               <Image
                 src={profile.avatar_url}
@@ -114,7 +133,7 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
                 unoptimized
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-zinc-400">
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-brand-blue-light to-brand-orange-light text-4xl font-bold text-white">
                 {profile.display_name?.[0]?.toUpperCase() || "?"}
               </div>
             )}
@@ -147,7 +166,7 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
 
         {/* Tabs */}
         <div className="border-b border-zinc-200 mb-8">
-          <nav className="flex gap-6">
+          <nav className="flex gap-6 overflow-x-auto">
             {TABS.map((t) => {
               const active = tab === t;
               return (
@@ -155,7 +174,7 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
                   key={t}
                   href={t === "Posts" ? `/member/${id}` : `/member/${id}?tab=${t}`}
                   scroll={false}
-                  className={`pb-3 border-b-2 text-sm font-medium transition-colors ${
+                  className={`pb-3 border-b-2 text-sm font-medium transition-colors whitespace-nowrap ${
                     active
                       ? "border-brand-blue text-brand-blue"
                       : "border-transparent text-zinc-500 hover:text-zinc-900"
@@ -168,12 +187,12 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
           </nav>
         </div>
 
-        {/* Tab content */}
+        {/* Tab content + sidebar */}
         <div className="grid lg:grid-cols-3 gap-8 mb-16">
           <div className="lg:col-span-2">
             {tab === "Posts" && (
               <>
-                {posts && posts.length > 0 ? (
+                {posts.length > 0 ? (
                   <div className="space-y-4">
                     {posts.map((p) => (
                       <Link
@@ -200,6 +219,8 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
                 )}
               </>
             )}
+
+            {tab === "Journal" && <JournalTab profileUserId={id} />}
 
             {tab === "About" && (
               <div className="space-y-6">
@@ -231,18 +252,17 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
               </div>
             )}
 
-            {tab === "Followers" && (
-              <div className="text-center py-12 bg-zinc-50 rounded-2xl">
-                <p className="text-zinc-500 text-sm">
-                  Followers are coming soon. We&apos;re building the follow system in a future
-                  release.
-                </p>
-              </div>
-            )}
+            {tab === "Followers" && <FollowersList profileUserId={id} />}
           </div>
 
           {/* Sidebar */}
           <aside className="space-y-6">
+            <FollowControls
+              profileUserId={id}
+              initialFollowerCount={followerCount}
+              initialFollowingCount={followingCount}
+            />
+
             <div className="bg-white border border-zinc-100 rounded-2xl p-5">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">
                 Stats
@@ -250,15 +270,11 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
               <dl className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <dt className="text-zinc-500">Published posts</dt>
-                  <dd className="font-medium text-zinc-900">{posts?.length || 0}</dd>
+                  <dd className="font-medium text-zinc-900">{posts.length}</dd>
                 </div>
                 <div className="flex justify-between">
-                  <dt className="text-zinc-500">Followers</dt>
-                  <dd className="font-medium text-zinc-900">—</dd>
-                </div>
-                <div className="flex justify-between">
-                  <dt className="text-zinc-500">Following</dt>
-                  <dd className="font-medium text-zinc-900">—</dd>
+                  <dt className="text-zinc-500">Member since</dt>
+                  <dd className="font-medium text-zinc-900">{memberSince}</dd>
                 </div>
               </dl>
             </div>
@@ -266,7 +282,7 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
             {socials.length > 0 && (
               <div className="bg-white border border-zinc-100 rounded-2xl p-5">
                 <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">
-                  Find {profile.display_name?.split(" ")[0]} elsewhere
+                  Find {firstName} elsewhere
                 </h3>
                 <ul className="space-y-2 text-sm">
                   {socials.slice(0, 5).map((s) => (
