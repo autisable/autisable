@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   social_linkedin TEXT,
   social_youtube TEXT,
   social_tiktok TEXT,
+  cover_photo_url TEXT, -- profile hub banner image
+  self_id_tags TEXT[], -- subset of: 'parent_guardian', 'neurodiverse', 'professional'
   role TEXT DEFAULT 'member' CHECK (role IN ('member', 'contributor', 'moderator', 'admin')),
   status TEXT DEFAULT 'pending_approval' CHECK (status IN ('pending_approval', 'active', 'suspended', 'removed')),
   created_at TIMESTAMPTZ DEFAULT NOW(),

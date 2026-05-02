@@ -57,13 +57,62 @@ export default function CommunityPage() {
       if (u) setUser({ id: u.id });
 
       if (u) {
-        const { data } = await supabase
-          .from("activity_feed")
-          .select("id, user_id, display_name, content, type, created_at, reactions_count, replies_count")
-          .order("created_at", { ascending: false })
-          .limit(30);
+        // Pull from BOTH sources and merge:
+        //  - activity_feed (status updates, future post types)
+        //  - journal_entries directly (anything not private + member can always
+        //    see their own non-private entries)
+        // Followers visibility: until the follow system ships, only the author
+        // sees their own followers-only entries; everyone sees all_members.
+        const [activityRes, journalsRes] = await Promise.all([
+          supabase
+            .from("activity_feed")
+            .select("id, user_id, display_name, content, type, created_at, reactions_count, replies_count")
+            .order("created_at", { ascending: false })
+            .limit(30),
+          supabase
+            .from("journal_entries")
+            .select("id, user_id, title, content, visibility, created_at")
+            .neq("visibility", "private")
+            .order("created_at", { ascending: false })
+            .limit(30),
+        ]);
 
-        if (data) setFeed(data);
+        const activityItems: FeedItem[] = (activityRes.data || []).map((a) => ({
+          id: a.id,
+          user_id: a.user_id,
+          display_name: a.display_name,
+          content: a.content,
+          type: a.type as "journal" | "post",
+          created_at: a.created_at,
+          reactions_count: a.reactions_count || 0,
+          replies_count: a.replies_count || 0,
+        }));
+
+        // Resolve display names for journal authors (single batched lookup).
+        const journalUserIds = [...new Set((journalsRes.data || []).map((j) => j.user_id))];
+        const { data: profiles } = journalUserIds.length > 0
+          ? await supabase.from("user_profiles").select("id, display_name").in("id", journalUserIds)
+          : { data: [] as { id: string; display_name: string }[] };
+        const nameById = new Map((profiles || []).map((p) => [p.id, p.display_name]));
+
+        const journalItems: FeedItem[] = (journalsRes.data || [])
+          // followers visibility: until follow system ships, show only own entries
+          .filter((j) => j.visibility === "all_members" || j.user_id === u.id)
+          .map((j) => ({
+            id: j.id,
+            user_id: j.user_id,
+            display_name: nameById.get(j.user_id) || "Member",
+            content: j.title ? `<strong>${j.title}</strong><br/>${j.content || ""}` : (j.content || ""),
+            type: "journal",
+            created_at: j.created_at,
+            reactions_count: 0,
+            replies_count: 0,
+          }));
+
+        const merged = [...activityItems, ...journalItems].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setFeed(merged);
       }
       setLoading(false);
     };
