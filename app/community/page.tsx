@@ -5,7 +5,9 @@ import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
 import FeedActions from "@/app/components/community/FeedActions";
 import FeedCompose from "@/app/components/community/FeedCompose";
+import FeedItemMenu from "@/app/components/community/FeedItemMenu";
 import { relativeTime } from "@/app/lib/relativeTime";
+import type { Role } from "@/app/lib/roles";
 
 const supabase = getSupabase();
 
@@ -58,7 +60,7 @@ const previewFeed = [
 
 export default function CommunityPage() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
-  const [user, setUser] = useState<{ id: string; display_name: string | null; avatar_url: string | null } | null>(null);
+  const [user, setUser] = useState<{ id: string; display_name: string | null; avatar_url: string | null; role: Role | null } | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<FilterTab>("all");
   const [hasMore, setHasMore] = useState(true);
@@ -217,13 +219,14 @@ export default function CommunityPage() {
 
       const { data: meProfile } = await supabase
         .from("user_profiles")
-        .select("display_name, avatar_url")
+        .select("display_name, avatar_url, role")
         .eq("id", u.id)
         .single();
       setUser({
         id: u.id,
         display_name: meProfile?.display_name || null,
         avatar_url: meProfile?.avatar_url || null,
+        role: (meProfile?.role as Role | undefined) || null,
       });
 
       const { items, reachedEnd } = await loadPage(null, tab, u.id);
@@ -248,6 +251,12 @@ export default function CommunityPage() {
 
   const handlePosted = (item: FeedItem) => {
     setFeed((prev) => [item, ...prev]);
+  };
+
+  // Remove a card from the local feed after a successful delete. RLS already
+  // enforced that the caller had permission, so we can trust the row is gone.
+  const handleDeleted = (itemId: string, source: "activity" | "journal") => {
+    setFeed((prev) => prev.filter((it) => !(it.id === itemId && it.source === source)));
   };
 
   const tabBtnClass = (active: boolean) =>
@@ -377,40 +386,53 @@ export default function CommunityPage() {
               <div className="space-y-4">
                 {feed.map((item) => (
                   <div key={`${item.source}-${item.id}`} className="p-6 bg-white rounded-2xl border border-zinc-100">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Link
-                        href={`/member/${item.user_id}`}
-                        className="w-10 h-10 rounded-full bg-brand-blue-light text-brand-blue flex items-center justify-center text-sm font-bold hover:opacity-80 overflow-hidden shrink-0"
-                      >
-                        {item.avatar_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={item.avatar_url}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          item.display_name?.charAt(0).toUpperCase() || "?"
-                        )}
-                      </Link>
-                      <div>
-                        <Link href={`/member/${item.user_id}`} className="text-sm font-semibold text-zinc-900 hover:text-brand-blue">
-                          {item.display_name}
-                        </Link>
-                        <div className="flex items-center gap-2 text-xs text-zinc-400">
-                          <time
-                            dateTime={item.created_at}
-                            title={new Date(item.created_at).toLocaleString()}
-                          >
-                            {relativeTime(item.created_at)}
-                          </time>
-                          {item.source === "journal" && (
-                            <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-full text-[10px] font-medium">
-                              Journal
-                            </span>
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Link
+                          href={`/member/${item.user_id}`}
+                          className="w-10 h-10 rounded-full bg-brand-blue-light text-brand-blue flex items-center justify-center text-sm font-bold hover:opacity-80 overflow-hidden shrink-0"
+                        >
+                          {item.avatar_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.avatar_url}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            item.display_name?.charAt(0).toUpperCase() || "?"
                           )}
+                        </Link>
+                        <div className="min-w-0">
+                          <Link href={`/member/${item.user_id}`} className="text-sm font-semibold text-zinc-900 hover:text-brand-blue">
+                            {item.display_name}
+                          </Link>
+                          <div className="flex items-center gap-2 text-xs text-zinc-400">
+                            <time
+                              dateTime={item.created_at}
+                              title={new Date(item.created_at).toLocaleString()}
+                            >
+                              {relativeTime(item.created_at)}
+                            </time>
+                            {item.source === "journal" && (
+                              <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-full text-[10px] font-medium">
+                                Journal
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      {/* Status updates only — journals have their own management
+                          surface in /dashboard/journal. */}
+                      {item.source === "activity" && user && (
+                        <FeedItemMenu
+                          itemId={item.id}
+                          itemOwnerId={item.user_id}
+                          currentUserId={user.id}
+                          currentUserRole={user.role}
+                          onDeleted={() => handleDeleted(item.id, item.source)}
+                        />
+                      )}
                     </div>
                     {item.title && (
                       <h3 className="text-base font-semibold text-zinc-900 mb-1.5 leading-snug">

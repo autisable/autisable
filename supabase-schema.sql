@@ -264,9 +264,24 @@ ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS tag_filter TEXT[];
 
 INSERT INTO affiliates (slug, name, tagline, cta_label, click_url, position) VALUES
   ('legalshield', 'LegalShield', 'Affordable legal protection for families navigating IEPs and special education law.', 'Get covered', 'https://autisablellc.legalshieldassociate.com/', 10),
-  ('apm', 'Autism Parenting Magazine', 'Strategies and stories for raising children on the autism spectrum.', 'Subscribe', 'https://members.autismparentingmagazine.com/dap/a/?a=62040&p=AutismParentingMagazine.com/how_to_purchase', 20),
+  ('apm', 'Autism Parenting Magazine', 'Strategies and stories for raising children on the autism spectrum.', 'Subscribe', 'https://www.autismparentingmagazine.com/subscriptions/', 20),
   ('vizyplan', 'VizyPlan', 'Visual planning tools that help autistic individuals build independence and manage daily routines.', 'See how it works', 'https://vizyplan.com', 30)
 ON CONFLICT (slug) DO NOTHING;
+
+-- Per Joel's notes: LegalShield gets brand assets + tags (legal issues, autism).
+-- Autism Parenting Magazine gets the subscriptions URL + Parenting-and-Autism tag.
+-- These run on every schema apply so launch-partner config stays in sync with the
+-- code's references to /Legalshield1.jpeg and /Legalshield2.jpeg (in public/).
+UPDATE affiliates
+SET banner_300x250_url = '/Legalshield1.jpeg',
+    banner_468x60_url = '/Legalshield2.jpeg',
+    tag_filter = ARRAY['legal issues', 'autism']
+WHERE slug = 'legalshield';
+
+UPDATE affiliates
+SET click_url = 'https://www.autismparentingmagazine.com/subscriptions/',
+    tag_filter = ARRAY['Parenting and Autism']
+WHERE slug = 'apm';
 
 -- Newsletter Subscribers
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
@@ -422,6 +437,28 @@ CREATE POLICY "Authenticated users can post comments" ON comments FOR INSERT WIT
 ALTER TABLE activity_feed ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Feed is viewable by authenticated users" ON activity_feed FOR SELECT USING (auth.uid() IS NOT NULL);
 CREATE POLICY "Users can post to feed" ON activity_feed FOR INSERT WITH CHECK (auth.uid() = user_id);
+-- Self-delete: members can remove their own status updates.
+CREATE POLICY "Members can delete own status updates" ON activity_feed FOR DELETE USING (auth.uid() = user_id);
+-- Moderation: moderator+ can delete any status update.
+CREATE POLICY "Moderators can delete any status update" ON activity_feed FOR DELETE USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role IN ('moderator', 'editor', 'admin'))
+);
+-- Moderation: moderator+ can delete any reply (members already have self-delete
+-- via the policy alongside feed_replies).
+CREATE POLICY "Moderators can delete any reply" ON feed_replies FOR DELETE USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role IN ('moderator', 'editor', 'admin'))
+);
+
+-- Moderation reports: members file them, moderator+ reviews.
+ALTER TABLE moderation_reports ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Members can submit moderation reports" ON moderation_reports FOR INSERT WITH CHECK (auth.uid() = reporter_id);
+CREATE POLICY "Reporters can read their own reports" ON moderation_reports FOR SELECT USING (auth.uid() = reporter_id);
+CREATE POLICY "Moderators can read all moderation reports" ON moderation_reports FOR SELECT USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role IN ('moderator', 'editor', 'admin'))
+);
+CREATE POLICY "Moderators can update moderation reports" ON moderation_reports FOR UPDATE USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role IN ('moderator', 'editor', 'admin'))
+);
 
 -- Notifications: users can only see their own
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;

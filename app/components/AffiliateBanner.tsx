@@ -46,7 +46,10 @@ export default function AffiliateBanner({ affiliate, size = "300x250" }: Props) 
           alt={affiliate.name}
           width={dims.w}
           height={dims.h}
-          className="rounded-lg border border-zinc-100 group-hover:shadow-md transition-shadow"
+          // object-cover so non-rectangular source assets (e.g. square FB-Messenger
+          // creatives) crop to fit the slot rather than stretching to its aspect ratio.
+          className="rounded-lg border border-zinc-100 group-hover:shadow-md transition-shadow object-cover"
+          style={{ width: dims.w, height: dims.h }}
         />
       ) : (
         <TextCard affiliate={affiliate} size={size} />
