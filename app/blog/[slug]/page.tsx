@@ -22,10 +22,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = post.meta_title || post.title;
   const description = post.meta_description || post.excerpt;
   const canonical = post.canonical_url || `https://autisable.com/blog/${slug}/`;
-  // OG image: editor's explicit upload wins, otherwise auto-generated at 1200x630.
-  // Auto-gen pulls live data so any title/featured-image change is reflected
-  // (cached for 1h at the edge — see /api/og/[slug]/route.ts).
-  const ogImage = post.og_image || `https://autisable.com/api/og/${slug}/`;
+  // OG image fallback chain (per Joel's note — without a populated og:image,
+  // platforms either show no preview or pull something unpredictable, killing
+  // CTR on shared links):
+  //   1. og_image       — editor's explicit upload, used as-is.
+  //   2. /api/og/featured/[slug]/  — featured image rendered to 1200x630 PNG.
+  //      Wrapping the editor's featured image in next/og guarantees the OG
+  //      dimensions and bypasses third-party-host quirks (RSS-imported posts
+  //      reference featured images on blogspot/wordpress.com).
+  //   3. /api/og/[slug]/ — branded text card. Only reached when there's no
+  //      featured image at all.
+  const ogImage = post.og_image
+    || (post.image
+      ? `https://autisable.com/api/og/featured/${slug}/`
+      : `https://autisable.com/api/og/${slug}/`);
 
   // Build keywords list: focus first, then additional, then tags as fallback
   const allKeywords = [
@@ -109,7 +119,11 @@ export default async function BlogPostPage({ params }: Props) {
     "@type": "Article",
     headline: post.title,
     description: post.meta_description || post.excerpt,
-    image: post.og_image || `https://autisable.com/api/og/${slug}/`,
+    // Match the same fallback chain as the OG meta tags above.
+    image: post.og_image
+      || (post.image
+        ? `https://autisable.com/api/og/featured/${slug}/`
+        : `https://autisable.com/api/og/${slug}/`),
     datePublished: post.date,
     dateModified: post.date_modified || post.date,
     mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },

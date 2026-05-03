@@ -26,7 +26,7 @@ interface PostRow {
 const ISSUES = [
   { key: "missing_meta_description", label: "Missing Meta Description", desc: "Posts without a custom SEO description. Google falls back to the excerpt or truncates the article body." },
   { key: "missing_focus_keyword", label: "Missing Focus Keyphrase", desc: "Posts without a primary keyphrase. Limits AI/LLM ability to categorize the post for retrieval." },
-  { key: "missing_og_image", label: "Missing OG Image", desc: "Posts without an Open Graph image. Social shares (Facebook, LinkedIn, X) will show no preview image." },
+  { key: "missing_og_image", label: "Missing OG Image", desc: "Posts without a custom Open Graph image. The site falls back to the featured image (or a branded card) automatically — these still preview cleanly on Facebook, LinkedIn, and X. Uploading a custom og_image lets you control framing exactly." },
   { key: "missing_excerpt", label: "Missing Excerpt", desc: "Posts without a manual excerpt. Affects how the post appears in listings and AI summaries." },
   { key: "missing_featured_image", label: "Missing Featured Image", desc: "Posts without a hero image. Showing the Autisable logo placeholder." },
   { key: "syndicated_no_canonical", label: "Syndicated, No Canonical", desc: "Posts marked as syndicated but missing a canonical URL — risks duplicate-content penalties." },
