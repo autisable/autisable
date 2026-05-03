@@ -264,7 +264,7 @@ ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS tag_filter TEXT[];
 
 INSERT INTO affiliates (slug, name, tagline, cta_label, click_url, position) VALUES
   ('legalshield', 'LegalShield', 'Affordable legal protection for families navigating IEPs and special education law.', 'Get covered', 'https://autisablellc.legalshieldassociate.com/', 10),
-  ('apm', 'Autism Parenting Magazine', 'Strategies and stories for raising children on the autism spectrum.', 'Subscribe', 'https://www.autismparentingmagazine.com/subscriptions/', 20),
+  ('apm', 'Autism Parenting Magazine', 'Strategies and stories for raising children on the autism spectrum.', 'Subscribe', 'https://members.autismparentingmagazine.com/dap/a/?a=62040&p=AutismParentingMagazine.com/subscriptions/', 20),
   ('vizyplan', 'VizyPlan', 'Visual planning tools that help autistic individuals build independence and manage daily routines.', 'See how it works', 'https://vizyplan.com', 30)
 ON CONFLICT (slug) DO NOTHING;
 
@@ -278,8 +278,11 @@ SET banner_300x250_url = '/Legalshield1.jpeg',
     tag_filter = ARRAY['legal issues', 'autism']
 WHERE slug = 'legalshield';
 
+-- APM uses the DAP affiliate redirector — the ?a=62040 query param attributes
+-- the click to Joel's affiliate account. Don't simplify to the bare
+-- subscriptions URL; commission tracking depends on this exact form.
 UPDATE affiliates
-SET click_url = 'https://www.autismparentingmagazine.com/subscriptions/',
+SET click_url = 'https://members.autismparentingmagazine.com/dap/a/?a=62040&p=AutismParentingMagazine.com/subscriptions/',
     tag_filter = ARRAY['Parenting and Autism']
 WHERE slug = 'apm';
 
