@@ -13,6 +13,7 @@ interface Post {
   category: string;
   is_published: boolean;
   is_syndicated: boolean;
+  canonical_url: string | null;
   date: string;
   author_name: string | null;
   draft_status: string | null;
@@ -42,7 +43,7 @@ export default function AdminPostsPage() {
 
     let query = supabase
       .from("blog_posts")
-      .select("id, title, slug, category, is_published, is_syndicated, date, author_name, draft_status", { count: "exact" })
+      .select("id, title, slug, category, is_published, is_syndicated, canonical_url, date, author_name, draft_status", { count: "exact" })
       .order(sortColumn, { ascending: sortAsc, nullsFirst: false })
       .range(pageNum * POSTS_PER_PAGE, (pageNum + 1) * POSTS_PER_PAGE - 1);
 
@@ -192,6 +193,9 @@ export default function AdminPostsPage() {
                     </button>
                   </th>
                   <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">Status</th>
+                  <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 hidden lg:table-cell">
+                    Source
+                  </th>
                   <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3 hidden sm:table-cell">
                     <button onClick={() => handleSort("date")} className="hover:text-zinc-900 inline-flex items-center gap-1">
                       Date{sortColumn === "date" && <span aria-hidden>{sortAsc ? "↑" : "↓"}</span>}
@@ -246,6 +250,21 @@ export default function AdminPostsPage() {
                           ? "Trash"
                           : "Draft"}
                       </button>
+                    </td>
+                    <td className="px-5 py-3 hidden lg:table-cell max-w-[240px]">
+                      {post.canonical_url ? (
+                        <a
+                          href={post.canonical_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={post.canonical_url}
+                          className="text-xs text-brand-blue hover:underline truncate block"
+                        >
+                          {post.canonical_url.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                        </a>
+                      ) : (
+                        <span className="text-xs text-zinc-300">—</span>
+                      )}
                     </td>
                     <td className="px-5 py-3 hidden sm:table-cell">
                       <span className="text-xs text-zinc-400">
