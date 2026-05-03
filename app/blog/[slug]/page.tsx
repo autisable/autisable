@@ -163,10 +163,12 @@ export default async function BlogPostPage({ params }: Props) {
     ],
   };
 
-  // Pick a sidebar-eligible affiliate matched to this post's category. Each
-  // request rotates so different visits see different partners. Returns null
-  // if nothing eligible — BlogPostClient renders no banner in that case.
-  const affiliate = await pickAffiliate("sidebar", post.category || null);
+  // Pick a sidebar-eligible affiliate matched to this post's category and
+  // tags (OR-combined). Each request rotates so different visits see
+  // different partners. Returns null if nothing eligible — BlogPostClient
+  // renders no banner in that case.
+  const postTags = Array.isArray(post.tags) ? (post.tags as string[]) : null;
+  const affiliate = await pickAffiliate("sidebar", post.category || null, postTags);
 
   return (
     <>

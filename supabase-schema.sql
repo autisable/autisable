@@ -239,7 +239,8 @@ CREATE TABLE IF NOT EXISTS affiliates (
   click_url TEXT NOT NULL,            -- Where the click goes (must include affiliate tag/ID)
   banner_300x250_url TEXT,            -- Primary banner asset (IAB medium rectangle)
   banner_468x60_url TEXT,             -- Secondary banner asset (IAB full banner)
-  category_filter TEXT[],             -- NULL = show everywhere; otherwise only these blog categories
+  category_filter TEXT[],             -- NULL = no category restriction; otherwise show only when post category matches
+  tag_filter TEXT[],                  -- NULL = no tag restriction; otherwise show only when post has at least one matching tag. OR-combined with category_filter.
   show_in_sidebar BOOLEAN DEFAULT TRUE,
   show_in_footer BOOLEAN DEFAULT FALSE,
   is_active BOOLEAN DEFAULT TRUE,
@@ -258,6 +259,9 @@ CREATE POLICY "Admins can manage affiliates" ON affiliates FOR ALL USING (
 
 -- Seed the three launch partners so the framework is non-empty out of the box.
 -- ON CONFLICT DO NOTHING so re-runs don't overwrite admin edits.
+-- Targeting: also expose tag_filter so partners can be scoped to posts tagged a certain way.
+ALTER TABLE affiliates ADD COLUMN IF NOT EXISTS tag_filter TEXT[];
+
 INSERT INTO affiliates (slug, name, tagline, cta_label, click_url, position) VALUES
   ('legalshield', 'LegalShield', 'Affordable legal protection for families navigating IEPs and special education law.', 'Get covered', 'https://autisablellc.legalshieldassociate.com/', 10),
   ('apm', 'Autism Parenting Magazine', 'Strategies and stories for raising children on the autism spectrum.', 'Subscribe', 'https://members.autismparentingmagazine.com/dap/a/?a=62040&p=AutismParentingMagazine.com/how_to_purchase', 20),

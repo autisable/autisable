@@ -16,6 +16,7 @@ interface Affiliate {
   banner_300x250_url: string | null;
   banner_468x60_url: string | null;
   category_filter: string[] | null;
+  tag_filter: string[] | null;
   show_in_sidebar: boolean;
   show_in_footer: boolean;
   is_active: boolean;
@@ -165,7 +166,7 @@ export default function AdminAffiliatesPage() {
                   </label>
                   <label className="text-xs col-span-full">
                     <span className="block text-zinc-500 mb-1">
-                      Category filter (comma-separated; leave blank to show on all categories)
+                      Category filter (comma-separated; leave blank for no category restriction)
                     </span>
                     <input
                       type="text"
@@ -179,6 +180,26 @@ export default function AdminAffiliatesPage() {
                         const newVal = arr.length ? arr : null;
                         const same = JSON.stringify(newVal) === JSON.stringify(a.category_filter);
                         if (!same) update(a.id, { category_filter: newVal });
+                      }}
+                      className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:ring-2 focus:ring-brand-blue"
+                    />
+                  </label>
+                  <label className="text-xs col-span-full">
+                    <span className="block text-zinc-500 mb-1">
+                      Tag filter (comma-separated; OR-combined with category filter — show if EITHER matches)
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="e.g. vizyplan, aac, visual-schedules"
+                      defaultValue={(a.tag_filter || []).join(", ")}
+                      onBlur={(e) => {
+                        const arr = e.target.value
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean);
+                        const newVal = arr.length ? arr : null;
+                        const same = JSON.stringify(newVal) === JSON.stringify(a.tag_filter);
+                        if (!same) update(a.id, { tag_filter: newVal });
                       }}
                       className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:ring-2 focus:ring-brand-blue"
                     />
