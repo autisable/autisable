@@ -53,6 +53,44 @@ export default function AdminAffiliatesPage() {
     setSavingId(null);
   };
 
+  // Upload a banner file directly instead of pasting a URL. Posts to
+  // /api/upload/affiliate-banner with the user's session token (admin-gated
+  // server-side). On success we write the returned public URL into the
+  // matching banner field via the standard `update` flow.
+  const uploadBanner = async (
+    affiliate: Affiliate,
+    size: "300x250" | "468x60",
+    file: File
+  ) => {
+    setSavingId(affiliate.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert("Not signed in. Refresh the page and log in again.");
+        return;
+      }
+      const form = new FormData();
+      form.append("file", file);
+      form.append("slug", affiliate.slug);
+      form.append("size", size);
+
+      const res = await fetch("/api/upload/affiliate-banner", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: form,
+      });
+      const json = await res.json();
+      if (!res.ok || !json.url) {
+        alert(`Upload failed: ${json.error || res.statusText}`);
+        return;
+      }
+      const field = size === "300x250" ? "banner_300x250_url" : "banner_468x60_url";
+      await update(affiliate.id, { [field]: json.url });
+    } finally {
+      setSavingId(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="bg-white border-b border-zinc-200 px-6 py-4">
@@ -144,26 +182,20 @@ export default function AdminAffiliatesPage() {
                       className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:ring-2 focus:ring-brand-blue"
                     />
                   </label>
-                  <label className="text-xs">
-                    <span className="block text-zinc-500 mb-1">Banner 300×250 URL (sidebar / inline)</span>
-                    <input
-                      type="url"
-                      placeholder="Leave blank for text-card fallback"
-                      defaultValue={a.banner_300x250_url || ""}
-                      onBlur={(e) => e.target.value !== (a.banner_300x250_url || "") && update(a.id, { banner_300x250_url: e.target.value || null })}
-                      className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:ring-2 focus:ring-brand-blue"
-                    />
-                  </label>
-                  <label className="text-xs">
-                    <span className="block text-zinc-500 mb-1">Banner 468×60 URL (footer)</span>
-                    <input
-                      type="url"
-                      placeholder="Leave blank for text-card fallback"
-                      defaultValue={a.banner_468x60_url || ""}
-                      onBlur={(e) => e.target.value !== (a.banner_468x60_url || "") && update(a.id, { banner_468x60_url: e.target.value || null })}
-                      className="w-full px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:ring-2 focus:ring-brand-blue"
-                    />
-                  </label>
+                  <BannerField
+                    affiliate={a}
+                    size="300x250"
+                    label="Banner 300×250 (sidebar / inline)"
+                    onUpload={(file) => uploadBanner(a, "300x250", file)}
+                    onUrlChange={(url) => update(a.id, { banner_300x250_url: url })}
+                  />
+                  <BannerField
+                    affiliate={a}
+                    size="468x60"
+                    label="Banner 468×60 (footer)"
+                    onUpload={(file) => uploadBanner(a, "468x60", file)}
+                    onUrlChange={(url) => update(a.id, { banner_468x60_url: url })}
+                  />
                   <label className="text-xs col-span-full">
                     <span className="block text-zinc-500 mb-1">
                       Category filter (comma-separated; leave blank for no category restriction)
@@ -233,6 +265,92 @@ export default function AdminAffiliatesPage() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Banner field: URL input + upload button + preview thumbnail. Uploads
+ * route through /api/upload/affiliate-banner so the file lands in the
+ * Media bucket; the resulting public URL is what gets stored on the row.
+ */
+function BannerField({
+  affiliate,
+  size,
+  label,
+  onUpload,
+  onUrlChange,
+}: {
+  affiliate: Affiliate;
+  size: "300x250" | "468x60";
+  label: string;
+  onUpload: (file: File) => Promise<void>;
+  onUrlChange: (url: string | null) => Promise<void>;
+}) {
+  const currentUrl = size === "300x250" ? affiliate.banner_300x250_url : affiliate.banner_468x60_url;
+  const [uploading, setUploading] = useState(false);
+  const inputId = `banner-upload-${affiliate.id}-${size}`;
+
+  return (
+    <div className="text-xs">
+      <span className="block text-zinc-500 mb-1">{label}</span>
+      <div className="flex items-stretch gap-2">
+        <input
+          type="url"
+          placeholder="Upload below or paste a URL — leave blank for text-card fallback"
+          defaultValue={currentUrl || ""}
+          key={currentUrl || "empty"}
+          onBlur={(e) => {
+            const v = e.target.value || null;
+            if (v !== (currentUrl || null)) void onUrlChange(v);
+          }}
+          className="flex-1 min-w-0 px-3 py-2 text-sm border border-zinc-200 rounded-lg focus:ring-2 focus:ring-brand-blue"
+        />
+        <label
+          htmlFor={inputId}
+          className={`shrink-0 px-3 py-2 text-xs font-medium rounded-lg cursor-pointer transition-colors ${
+            uploading
+              ? "bg-zinc-100 text-zinc-400 cursor-wait"
+              : "bg-brand-blue text-white hover:bg-brand-blue-dark"
+          }`}
+        >
+          {uploading ? "Uploading…" : "Upload"}
+        </label>
+        <input
+          id={inputId}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,image/gif"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            setUploading(true);
+            try {
+              await onUpload(file);
+            } finally {
+              setUploading(false);
+              e.target.value = ""; // allow re-uploading the same filename
+            }
+          }}
+        />
+      </div>
+      {currentUrl && (
+        <div className="mt-2 flex items-start gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={currentUrl}
+            alt={`${affiliate.name} ${size}`}
+            className="rounded border border-zinc-200 max-h-20 w-auto object-contain bg-zinc-50"
+          />
+          <button
+            type="button"
+            onClick={() => void onUrlChange(null)}
+            className="text-xs text-brand-red hover:underline"
+          >
+            Remove
+          </button>
+        </div>
+      )}
     </div>
   );
 }
