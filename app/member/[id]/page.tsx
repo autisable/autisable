@@ -119,9 +119,11 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
       />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Identity row — avatar overlapping cover, z-10 keeps it stacked above */}
-        <div className="relative z-10 -mt-16 sm:-mt-20 flex flex-col sm:flex-row sm:items-end gap-4 sm:gap-6 mb-8">
-          <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white bg-white overflow-hidden shrink-0 shadow-md">
+        {/* Identity row — only the avatar pulls up to overlap the cover photo;
+            the name/role/chips sit in normal flow below the cover so they
+            never bleed over the image. z-10 keeps the avatar stacked above. */}
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-8">
+          <div className="-mt-16 sm:-mt-20 relative z-10 w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white bg-white overflow-hidden shrink-0 shadow-md">
             {profile.avatar_url ? (
               <Image
                 src={profile.avatar_url}
@@ -137,7 +139,7 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
               </div>
             )}
           </div>
-          <div className="flex-1 min-w-0 sm:pb-4">
+          <div className="flex-1 min-w-0 sm:pt-3">
             <h1 className="text-2xl sm:text-3xl font-bold text-zinc-900">{profile.display_name}</h1>
             <p className="text-sm text-zinc-500 mt-1">
               <span className="capitalize">{profile.role}</span> · Joined {memberSince}
