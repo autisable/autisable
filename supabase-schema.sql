@@ -353,12 +353,15 @@ CREATE TABLE IF NOT EXISTS rss_queue (
   title TEXT NOT NULL,
   content TEXT NOT NULL DEFAULT '',
   excerpt TEXT,
+  image_url TEXT, -- Featured image extracted from media:content / media:thumbnail / enclosure / first <img>. Carried through to blog_posts.image on approve.
   source_url TEXT UNIQUE NOT NULL,
   published_date TIMESTAMPTZ,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'declined')),
   assigned_author_id UUID REFERENCES user_profiles(id),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+-- Idempotent: existing rss_queue tables predate the image_url column.
+ALTER TABLE rss_queue ADD COLUMN IF NOT EXISTS image_url TEXT;
 
 -- RSS Feed Errors
 CREATE TABLE IF NOT EXISTS rss_feed_errors (

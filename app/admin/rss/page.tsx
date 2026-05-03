@@ -22,6 +22,7 @@ interface QueueItem {
   title: string;
   content: string;
   excerpt: string;
+  image_url: string | null;
   source_url: string;
   published_date: string;
   status: string;
@@ -129,6 +130,12 @@ export default function AdminRSSPage() {
         // that were created when the feed only emitted <description>.
         content: item.content || item.excerpt || "",
         excerpt: item.excerpt?.slice(0, 300) || "",
+        // Carry the featured image through so social previews work without
+        // editor intervention. og_image stays null on purpose — the OG
+        // fallback chain renders blog_posts.image at exactly 1200x630 via
+        // /api/og/featured/[slug]/, sidestepping cropping issues from
+        // arbitrary-aspect-ratio source images.
+        image: item.image_url || null,
         category: "Bloggers",
         date: item.published_date || new Date().toISOString(),
         is_published: false,
