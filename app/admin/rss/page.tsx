@@ -20,6 +20,7 @@ interface QueueItem {
   feed_id: string | null;
   feed_name: string;
   title: string;
+  content: string;
   excerpt: string;
   source_url: string;
   published_date: string;
@@ -117,7 +118,10 @@ export default function AdminRSSPage() {
     const { error } = await supabase.from("blog_posts").insert({
       title: item.title,
       slug: slug + "-" + Date.now().toString(36),
-      content: item.excerpt || "",
+      // Prefer the full body (item.content) — the feed-extractor stores
+      // <content:encoded> there. Fall back to excerpt for legacy queue rows
+      // that were created when the feed only emitted <description>.
+      content: item.content || item.excerpt || "",
       excerpt: item.excerpt?.slice(0, 300) || "",
       category: "Bloggers",
       date: item.published_date || new Date().toISOString(),
