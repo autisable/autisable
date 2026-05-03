@@ -115,28 +115,48 @@ export default function AdminRSSPage() {
     // Posts enter the editorial pipeline as Pending Review — they do NOT auto-publish.
     // Editors review/edit, then move through the pipeline to Scheduled → Published.
     const slug = item.title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").slice(0, 100);
-    const { error } = await supabase.from("blog_posts").insert({
-      title: item.title,
-      slug: slug + "-" + Date.now().toString(36),
-      // Prefer the full body (item.content) — the feed-extractor stores
-      // <content:encoded> there. Fall back to excerpt for legacy queue rows
-      // that were created when the feed only emitted <description>.
-      content: item.content || item.excerpt || "",
-      excerpt: item.excerpt?.slice(0, 300) || "",
-      category: "Bloggers",
-      date: item.published_date || new Date().toISOString(),
-      is_published: false,
-      draft_status: "pending_review",
-      is_syndicated: true,
-      canonical_url: item.source_url,
-      author_id: feed?.author_id || null,
-      author_name: author?.display_name || item.feed_name,
-    });
+    // .select().single() forces the response to include the inserted row OR
+    // raise a real error. Without it, supabase-js returns {data: null, error: null}
+    // when RLS silently rejects the insert — which is how a previous bug let the
+    // queue row flip to "approved" while no blog_post was ever created.
+    const { data: created, error } = await supabase
+      .from("blog_posts")
+      .insert({
+        title: item.title,
+        slug: slug + "-" + Date.now().toString(36),
+        // Prefer the full body (item.content) — the feed-extractor stores
+        // <content:encoded> there. Fall back to excerpt for legacy queue rows
+        // that were created when the feed only emitted <description>.
+        content: item.content || item.excerpt || "",
+        excerpt: item.excerpt?.slice(0, 300) || "",
+        category: "Bloggers",
+        date: item.published_date || new Date().toISOString(),
+        is_published: false,
+        draft_status: "pending_review",
+        is_syndicated: true,
+        canonical_url: item.source_url,
+        author_id: feed?.author_id || null,
+        author_name: author?.display_name || item.feed_name,
+      })
+      .select("id")
+      .single();
 
-    if (!error) {
-      await supabase.from("rss_queue").update({ status: "approved" }).eq("id", item.id);
-      setQueue((prev) => prev.filter((q) => q.id !== item.id));
+    if (error || !created) {
+      const detail = error?.message || "no row returned (RLS may have rejected the insert)";
+      alert(`Approve failed — blog post was NOT created.\n\n${detail}\n\nThe queue row was left untouched.`);
+      console.error("approveItem insert failed:", { error, item });
+      return;
     }
+
+    const { error: queueErr } = await supabase
+      .from("rss_queue")
+      .update({ status: "approved" })
+      .eq("id", item.id);
+    if (queueErr) {
+      alert(`Blog post was created (id ${created.id}) but the queue row could not be marked approved: ${queueErr.message}`);
+      return;
+    }
+    setQueue((prev) => prev.filter((q) => q.id !== item.id));
   };
 
   const declineItem = async (id: string) => {

@@ -21,14 +21,23 @@ interface Post {
 
 const POSTS_PER_PAGE = 30;
 
+type FilterKey = "all" | "published" | "drafts" | "scheduled" | "pending" | "in_progress" | "rejected" | "syndicated" | "trash";
+
 export default function AdminPostsPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<"all" | "published" | "drafts" | "scheduled" | "pending" | "in_progress" | "rejected" | "syndicated" | "trash">("all");
+  const [filter, setFilter] = useState<FilterKey>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
+  // Per-bucket totals so each filter button can show its size at a glance.
+  // Refreshed on mount and after any state-mutating action (publish toggle,
+  // trash, restore, perma-delete) so the numbers don't drift from reality.
+  const [counts, setCounts] = useState<Record<FilterKey, number | null>>({
+    all: null, published: null, drafts: null, scheduled: null, pending: null,
+    in_progress: null, rejected: null, syndicated: null, trash: null,
+  });
   const [sortColumn, setSortColumn] = useState<"date" | "title" | "author_name" | "category">("date");
   const [sortAsc, setSortAsc] = useState(false);
 
@@ -80,6 +89,38 @@ export default function AdminPostsPage() {
     void loadPosts(0);
   }, [filter, search, sortColumn, sortAsc, loadPosts]);
 
+  // Fetch counts for every filter bucket in parallel. Uses head:true so we
+  // get just the count header (no row payload), keeping the round-trip cheap
+  // even on a 5k-post table. Doesn't depend on `search` — counts always show
+  // the bucket-wide totals so the editor can navigate by quantity.
+  const loadCounts = useCallback(async () => {
+    if (!supabase) return;
+    const notTrashed = "draft_status.is.null,draft_status.neq.trash";
+    const queries: Array<[FilterKey, () => Promise<{ count: number | null }>]> = [
+      ["all", () => supabase.from("blog_posts").select("id", { count: "exact", head: true }).or(notTrashed)],
+      ["published", () => supabase.from("blog_posts").select("id", { count: "exact", head: true }).or(notTrashed).eq("is_published", true)],
+      ["drafts", () => supabase.from("blog_posts").select("id", { count: "exact", head: true }).or(notTrashed).eq("is_published", false).is("draft_status", null)],
+      ["scheduled", () => supabase.from("blog_posts").select("id", { count: "exact", head: true }).or(notTrashed).eq("is_published", false).eq("draft_status", "ready_for_scheduling")],
+      ["pending", () => supabase.from("blog_posts").select("id", { count: "exact", head: true }).or(notTrashed).eq("is_published", false).eq("draft_status", "pending_review")],
+      ["in_progress", () => supabase.from("blog_posts").select("id", { count: "exact", head: true }).or(notTrashed).eq("is_published", false).eq("draft_status", "in_progress")],
+      ["rejected", () => supabase.from("blog_posts").select("id", { count: "exact", head: true }).or(notTrashed).eq("is_published", false).eq("draft_status", "rejected")],
+      ["syndicated", () => supabase.from("blog_posts").select("id", { count: "exact", head: true }).or(notTrashed).eq("is_syndicated", true)],
+      ["trash", () => supabase.from("blog_posts").select("id", { count: "exact", head: true }).eq("draft_status", "trash")],
+    ];
+    const results = await Promise.all(queries.map(([, q]) => q()));
+    const next: Record<FilterKey, number | null> = { ...counts };
+    queries.forEach(([key], i) => {
+      next[key] = results[i].count ?? 0;
+    });
+    setCounts(next);
+    // counts is intentionally excluded — we always seed `next` from a fresh
+    // closure each call, and including it would re-trigger this effect on
+    // every counts update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => { void loadCounts(); }, [loadCounts]);
+
   const handleSendToTrash = async (id: string) => {
     if (!confirm("Move this post to Trash? It can be restored later.")) return;
     if (!supabase) return;
@@ -88,6 +129,7 @@ export default function AdminPostsPage() {
       .update({ draft_status: "trash", is_published: false })
       .eq("id", id);
     setPosts((prev) => prev.filter((p) => p.id !== id));
+    void loadCounts();
   };
 
   const handleRestore = async (id: string) => {
@@ -97,6 +139,7 @@ export default function AdminPostsPage() {
       .update({ draft_status: null })
       .eq("id", id);
     setPosts((prev) => prev.filter((p) => p.id !== id));
+    void loadCounts();
   };
 
   const handlePermaDelete = async (id: string) => {
@@ -104,6 +147,7 @@ export default function AdminPostsPage() {
     if (!supabase) return;
     await supabase.from("blog_posts").delete().eq("id", id);
     setPosts((prev) => prev.filter((p) => p.id !== id));
+    void loadCounts();
   };
 
   const handleTogglePublish = async (id: string, currentStatus: boolean) => {
@@ -117,6 +161,7 @@ export default function AdminPostsPage() {
       ? { ...p, is_published: goingPublished, draft_status: goingPublished ? null : p.draft_status }
       : p
     ));
+    void loadCounts();
   };
 
   return (
@@ -145,18 +190,26 @@ export default function AdminPostsPage() {
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {/* Filters + Search */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex gap-2">
-            {(["all", "published", "drafts", "scheduled", "pending", "in_progress", "rejected", "syndicated", "trash"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors ${
-                  filter === f ? "bg-brand-blue text-white" : "bg-white text-zinc-600 border border-zinc-200"
-                }`}
-              >
-                {f.replace("_", " ")}
-              </button>
-            ))}
+          <div className="flex flex-wrap gap-2">
+            {(["all", "published", "drafts", "scheduled", "pending", "in_progress", "rejected", "syndicated", "trash"] as const).map((f) => {
+              const c = counts[f];
+              return (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-colors inline-flex items-center gap-1.5 ${
+                    filter === f ? "bg-brand-blue text-white" : "bg-white text-zinc-600 border border-zinc-200"
+                  }`}
+                >
+                  <span>{f.replace("_", " ")}</span>
+                  {c !== null && (
+                    <span className={`text-xs font-semibold ${filter === f ? "text-white/80" : "text-zinc-400"}`}>
+                      {c.toLocaleString()}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
           <input
             type="text"
