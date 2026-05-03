@@ -21,9 +21,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ imported: 0 });
   }
 
+  // Hard cap on imports per cron run — keeps the editorial review queue at
+  // a manageable size. Loops break out once we hit this. Counts NEW imports
+  // only; already-seen entries don't count against the cap.
+  const MAX_IMPORTS_PER_RUN = 5;
   let totalImported = 0;
 
-  for (const feed of feeds) {
+  outer: for (const feed of feeds) {
+    if (totalImported >= MAX_IMPORTS_PER_RUN) break;
     try {
       const result = await extract(feed.url, {
         getExtraEntryFields: (feedEntry: object) => {
@@ -35,7 +40,9 @@ export async function GET(req: NextRequest) {
 
       if (!result?.entries) continue;
 
-      for (const entry of result.entries.slice(0, 10)) {
+      for (const entry of result.entries) {
+        if (totalImported >= MAX_IMPORTS_PER_RUN) break outer;
+
         // Check if already imported
         const { data: existing } = await supabaseAdmin
           .from("rss_queue")
@@ -67,5 +74,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ imported: totalImported });
+  return NextResponse.json({ imported: totalImported, capped: totalImported >= MAX_IMPORTS_PER_RUN });
 }
