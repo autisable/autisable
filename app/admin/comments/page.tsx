@@ -87,7 +87,18 @@ export default function AdminCommentsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this comment? This cannot be undone.")) return;
     if (!supabase) return;
-    await supabase.from("comments").delete().eq("id", id);
+    // .select() forces a real response — without it, a RLS rejection returns
+    // {data:null, error:null} and the UI silently succeeds while nothing was
+    // actually deleted (next page reload, the comment reappears).
+    const { data, error } = await supabase
+      .from("comments")
+      .delete()
+      .eq("id", id)
+      .select("id");
+    if (error || !data || data.length === 0) {
+      alert(`Delete failed: ${error?.message || "no rows affected — RLS may be blocking the delete (admin policy missing?)"}`);
+      return;
+    }
     setComments((prev) => prev.filter((c) => c.id !== id));
     if (totalCount !== null) setTotalCount(totalCount - 1);
   };

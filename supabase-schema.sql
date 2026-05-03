@@ -438,6 +438,12 @@ CREATE POLICY "Members can see shared journal entries" ON journal_entries FOR SE
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Comments are viewable by everyone" ON comments FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can post comments" ON comments FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+-- Moderators+ can delete comments for moderation. Without this, the admin
+-- /admin/comments page's delete button silently no-ops because RLS has no
+-- DELETE policy at all.
+CREATE POLICY "Moderators can delete any comment" ON comments FOR DELETE USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role IN ('moderator', 'editor', 'admin'))
+);
 
 -- Activity feed: viewable by authenticated users
 ALTER TABLE activity_feed ENABLE ROW LEVEL SECURITY;
