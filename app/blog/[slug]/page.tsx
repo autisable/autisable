@@ -21,7 +21,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = post.meta_title || post.title;
   const description = post.meta_description || post.excerpt;
-  const canonical = post.canonical_url || `https://autisable.com/blog/${slug}/`;
+  const autisableUrl = `https://autisable.com/blog/${slug}/`;
+  // canonical drives <link rel="canonical"> for Google's SEO ranking. For
+  // syndicated posts it points to the original source so we don't compete
+  // with the original for duplicate-content scoring.
+  const canonical = post.canonical_url || autisableUrl;
   // OG image fallback chain (per Joel's note — without a populated og:image,
   // platforms either show no preview or pull something unpredictable, killing
   // CTR on shared links):
@@ -56,7 +60,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title,
       description,
-      url: canonical,
+      // og:url is the SOURCE attribution social platforms display next to
+      // the preview ("Posted from autisable.com"). Always our URL — even
+      // for syndicated posts where canonical points back to the original.
+      // Splitting these is the standard "syndicated content" pattern:
+      // SEO credit goes to the canonical, social attribution stays with us.
+      url: autisableUrl,
       type: "article",
       siteName: "Autisable",
       images: [{ url: ogImage, width: 1200, height: 630, alt: title }],
@@ -112,7 +121,10 @@ export default async function BlogPostPage({ params }: Props) {
     .limit(3);
 
   // ── JSON-LD: Article + Person + BreadcrumbList ──
-  const canonicalUrl = post.canonical_url || `https://autisable.com/blog/${slug}/`;
+  // mainEntityOfPage and the breadcrumb leaf describe THIS page, so they need
+  // the autisable URL — even on syndicated posts where the SEO canonical
+  // points back to the original source. (Same logical split as og:url above.)
+  const pageUrl = `https://autisable.com/blog/${slug}/`;
 
   const articleSchema: Record<string, unknown> = {
     "@context": "https://schema.org",
@@ -126,7 +138,7 @@ export default async function BlogPostPage({ params }: Props) {
         : `https://autisable.com/api/og/${slug}/`),
     datePublished: post.date,
     dateModified: post.date_modified || post.date,
-    mainEntityOfPage: { "@type": "WebPage", "@id": canonicalUrl },
+    mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
     publisher: {
       "@type": "Organization",
       name: "Autisable",
@@ -173,7 +185,7 @@ export default async function BlogPostPage({ params }: Props) {
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: "https://autisable.com" },
       { "@type": "ListItem", position: 2, name: "Stories", item: "https://autisable.com/blog/" },
-      { "@type": "ListItem", position: 3, name: post.title, item: canonicalUrl },
+      { "@type": "ListItem", position: 3, name: post.title, item: pageUrl },
     ],
   };
 
