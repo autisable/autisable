@@ -34,14 +34,19 @@ export async function GET(
 
   const { data: post } = await supabaseAdmin
     .from("blog_posts")
-    .select("image, title")
+    .select("image, og_image, title")
     .eq("slug", slug)
     .single();
 
-  // No featured image to render — emit a 1x1 brand swatch so callers don't
-  // accidentally pin this URL on posts without an image. The expectation is
-  // that generateMetadata picked this URL only when post.image is set.
-  if (!post?.image) {
+  // og_image is editor-set; image is the featured image. Either is acceptable
+  // input — the wrapper guarantees the OUTPUT is always 1200x630 either way,
+  // which is the whole reason we route through this endpoint instead of
+  // pointing og:image directly at a raw upload.
+  const sourceImage = post?.og_image || post?.image;
+
+  // No image to render — emit a brand swatch. The expectation is that
+  // generateMetadata picks this URL only when post has an image OR og_image.
+  if (!sourceImage) {
     return new ImageResponse(
       (
         <div
@@ -76,10 +81,10 @@ export async function GET(
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={post.image}
+          src={sourceImage}
           width={1200}
           height={630}
-          alt={post.title || ""}
+          alt={post?.title || ""}
           style={{
             width: 1200,
             height: 630,

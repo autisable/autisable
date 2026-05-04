@@ -26,20 +26,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // syndicated posts it points to the original source so we don't compete
   // with the original for duplicate-content scoring.
   const canonical = post.canonical_url || autisableUrl;
-  // OG image fallback chain (per Joel's note — without a populated og:image,
-  // platforms either show no preview or pull something unpredictable, killing
-  // CTR on shared links):
-  //   1. og_image       — editor's explicit upload, used as-is.
-  //   2. /api/og/featured/[slug]/  — featured image rendered to 1200x630 PNG.
-  //      Wrapping the editor's featured image in next/og guarantees the OG
-  //      dimensions and bypasses third-party-host quirks (RSS-imported posts
-  //      reference featured images on blogspot/wordpress.com).
-  //   3. /api/og/[slug]/ — branded text card. Only reached when there's no
-  //      featured image at all.
-  const ogImage = post.og_image
-    || (post.image
-      ? `https://autisable.com/api/og/featured/${slug}/`
-      : `https://autisable.com/api/og/${slug}/`);
+  // OG image: ALWAYS routed through /api/og/featured/[slug]/ when the post has
+  // any image (og_image or featured) so the output is guaranteed 1200x630 PNG
+  // under 300KB. The route reads og_image first, falling back to image — so
+  // editors can override per-post without bypassing the resize. Pointing
+  // og:image at a raw upload is what was breaking FB/LinkedIn previews
+  // (5-6MB unsplash files exceeded their preview limits).
+  // Brand text-card fallback only when both fields are null.
+  const hasImage = !!(post.og_image || post.image);
+  const ogImage = hasImage
+    ? `https://autisable.com/api/og/featured/${slug}/`
+    : `https://autisable.com/api/og/${slug}/`;
 
   // Build keywords list: focus first, then additional, then tags as fallback
   const allKeywords = [
@@ -125,17 +122,18 @@ export default async function BlogPostPage({ params }: Props) {
   // the autisable URL — even on syndicated posts where the SEO canonical
   // points back to the original source. (Same logical split as og:url above.)
   const pageUrl = `https://autisable.com/blog/${slug}/`;
+  const hasImage = !!(post.og_image || post.image);
 
   const articleSchema: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Article",
     headline: post.title,
     description: post.meta_description || post.excerpt,
-    // Match the same fallback chain as the OG meta tags above.
-    image: post.og_image
-      || (post.image
-        ? `https://autisable.com/api/og/featured/${slug}/`
-        : `https://autisable.com/api/og/${slug}/`),
+    // Same routing as the OG meta tags above — JSON-LD image goes through
+    // the resize wrapper too so structured data and social preview agree.
+    image: hasImage
+      ? `https://autisable.com/api/og/featured/${slug}/`
+      : `https://autisable.com/api/og/${slug}/`,
     datePublished: post.date,
     dateModified: post.date_modified || post.date,
     mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
