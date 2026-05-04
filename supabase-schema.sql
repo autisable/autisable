@@ -406,6 +406,40 @@ CREATE POLICY "Admins can read rss_feed_errors" ON rss_feed_errors FOR SELECT US
   EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
 );
 
+-- 404 audit log + admin-managed redirects (admin/broken-links page).
+-- Logged via service-role from app/not-found.tsx; redirects read by middleware
+-- with a 60s in-memory cache.
+CREATE TABLE IF NOT EXISTS link_404_log (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  url TEXT NOT NULL,
+  referrer TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_link_404_url ON link_404_log(url);
+CREATE INDEX IF NOT EXISTS idx_link_404_created ON link_404_log(created_at DESC);
+ALTER TABLE link_404_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins can read 404 log" ON link_404_log FOR SELECT USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+CREATE POLICY "Admins can delete 404 log" ON link_404_log FOR DELETE USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+
+CREATE TABLE IF NOT EXISTS redirects (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  from_path TEXT UNIQUE NOT NULL,
+  to_path TEXT NOT NULL,
+  status_code INT NOT NULL DEFAULT 301 CHECK (status_code IN (301, 302, 307, 308)),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_redirects_from ON redirects(from_path);
+ALTER TABLE redirects ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins manage redirects" ON redirects FOR ALL USING (
+  EXISTS (SELECT 1 FROM user_profiles WHERE user_profiles.id = auth.uid() AND user_profiles.role = 'admin')
+);
+
 -- Moderation Reports
 CREATE TABLE IF NOT EXISTS moderation_reports (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

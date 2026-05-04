@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { headers } from "next/headers";
 import { supabaseAdmin } from "@/app/lib/supabase";
 
 export const metadata = {
@@ -10,6 +11,31 @@ export const metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function NotFound() {
+  // Log the 404 hit so admins can audit broken links. We capture the path
+  // (set by middleware via x-pathname), the referrer (where the visitor
+  // came from), and the user-agent (helps spot vuln-scanning bots so
+  // their noise doesn't crowd out real broken-link reports).
+  const h = await headers();
+  const path = h.get("x-pathname");
+  // Don't log /admin or /api paths — admin paths intentionally 404 for
+  // logged-out visitors during the AdminGate redirect dance, and API
+  // paths are noise.
+  const shouldLog =
+    supabaseAdmin &&
+    path &&
+    !path.startsWith("/admin") &&
+    !path.startsWith("/api/") &&
+    !path.startsWith("/_next/");
+  if (shouldLog) {
+    // Fire and await — at ~10ms it's worth the simplicity over background
+    // task plumbing, and this path is rare by definition (it's a 404).
+    await supabaseAdmin.from("link_404_log").insert({
+      url: path,
+      referrer: h.get("referer") || null,
+      user_agent: h.get("user-agent") || null,
+    });
+  }
+
   const { data: recent } = supabaseAdmin
     ? await supabaseAdmin
         .from("blog_posts")
