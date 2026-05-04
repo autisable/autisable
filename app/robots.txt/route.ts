@@ -121,8 +121,11 @@ Disallow: /
 User-agent: Meta-ExternalFetcher
 Disallow: /
 
-User-agent: facebookexternalhit
-Disallow: /
+# NOTE: facebookexternalhit is intentionally NOT blocked here. It's
+# Facebook/Instagram/Threads' share-preview scraper (powers OG link
+# cards), not a training crawler. Easy to confuse with Meta-ExternalAgent
+# (which IS for training and stays blocked). facebookexternalhit falls
+# under the default User-agent: * rules above.
 
 User-agent: Diffbot
 Disallow: /
