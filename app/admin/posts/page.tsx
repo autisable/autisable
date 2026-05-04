@@ -40,6 +40,10 @@ export default function AdminPostsPage() {
   });
   const [sortColumn, setSortColumn] = useState<"date" | "title" | "author_name" | "category">("date");
   const [sortAsc, setSortAsc] = useState(false);
+  // Bulk selection. Cleared whenever the filter / search / sort changes so we
+  // never act on rows the editor can't see.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const handleSort = (col: typeof sortColumn) => {
     if (sortColumn === col) setSortAsc(!sortAsc);
@@ -86,6 +90,7 @@ export default function AdminPostsPage() {
   useEffect(() => {
     setPage(0);
     setPosts([]);
+    setSelectedIds(new Set());
     void loadPosts(0);
   }, [filter, search, sortColumn, sortAsc, loadPosts]);
 
@@ -164,6 +169,136 @@ export default function AdminPostsPage() {
     void loadCounts();
   };
 
+  // Bulk: apply the same update to every selected row, then prune from the
+  // visible list (since most actions move rows out of the current filter).
+  // Counts refresh so the tab badges stay correct.
+  const bulkUpdate = async (
+    updates: Partial<Pick<Post, "is_published" | "draft_status">>,
+    confirmMessage?: string
+  ) => {
+    if (!supabase || selectedIds.size === 0) return;
+    if (confirmMessage && !confirm(confirmMessage.replace("{n}", String(selectedIds.size)))) return;
+    setBulkBusy(true);
+    const ids = [...selectedIds];
+    const { error } = await supabase
+      .from("blog_posts")
+      .update(updates)
+      .in("id", ids)
+      .select("id");
+    setBulkBusy(false);
+    if (error) {
+      alert(`Bulk update failed: ${error.message}`);
+      return;
+    }
+    setPosts((prev) => prev.filter((p) => !selectedIds.has(p.id)));
+    setSelectedIds(new Set());
+    void loadCounts();
+  };
+
+  const bulkPermaDelete = async () => {
+    if (!supabase || selectedIds.size === 0) return;
+    if (!confirm(`Permanently delete ${selectedIds.size} post(s)? This cannot be undone.`)) return;
+    setBulkBusy(true);
+    const ids = [...selectedIds];
+    const { error } = await supabase.from("blog_posts").delete().in("id", ids).select("id");
+    setBulkBusy(false);
+    if (error) {
+      alert(`Bulk delete failed: ${error.message}`);
+      return;
+    }
+    setPosts((prev) => prev.filter((p) => !selectedIds.has(p.id)));
+    setSelectedIds(new Set());
+    void loadCounts();
+  };
+
+  // The 1-2 actions that make sense for the current tab. "primary" gets the
+  // brand-blue treatment; "danger" is red. Anything else is neutral.
+  type BulkAction = { label: string; run: () => void; tone: "primary" | "danger" | "neutral" };
+  const bulkActions: BulkAction[] = (() => {
+    switch (filter) {
+      case "drafts":
+        return [
+          { label: "Send to Pending Review", tone: "primary",
+            run: () => bulkUpdate({ draft_status: "pending_review" }) },
+          { label: "Trash", tone: "danger",
+            run: () => bulkUpdate({ draft_status: "trash", is_published: false }, "Move {n} post(s) to Trash?") },
+        ];
+      case "scheduled":
+        return [
+          { label: "Publish", tone: "primary",
+            run: () => bulkUpdate({ is_published: true, draft_status: null }, "Publish {n} post(s) now?") },
+          { label: "Unschedule", tone: "neutral",
+            run: () => bulkUpdate({ draft_status: null }) },
+        ];
+      case "pending":
+        return [
+          { label: "Approve → Scheduled", tone: "primary",
+            run: () => bulkUpdate({ draft_status: "ready_for_scheduling" }) },
+          { label: "Reject", tone: "danger",
+            run: () => bulkUpdate({ draft_status: "rejected" }, "Reject {n} post(s)?") },
+        ];
+      case "in_progress":
+        return [
+          { label: "Send to Pending Review", tone: "primary",
+            run: () => bulkUpdate({ draft_status: "pending_review" }) },
+          { label: "Trash", tone: "danger",
+            run: () => bulkUpdate({ draft_status: "trash", is_published: false }, "Move {n} post(s) to Trash?") },
+        ];
+      case "rejected":
+        return [
+          { label: "Restore to Draft", tone: "primary",
+            run: () => bulkUpdate({ draft_status: null }) },
+          { label: "Trash", tone: "danger",
+            run: () => bulkUpdate({ draft_status: "trash", is_published: false }, "Move {n} post(s) to Trash?") },
+        ];
+      case "published":
+        return [
+          { label: "Unpublish", tone: "neutral",
+            run: () => bulkUpdate({ is_published: false }, "Unpublish {n} post(s)?") },
+          { label: "Trash", tone: "danger",
+            run: () => bulkUpdate({ draft_status: "trash", is_published: false }, "Move {n} post(s) to Trash?") },
+        ];
+      case "trash":
+        return [
+          { label: "Restore", tone: "primary",
+            run: () => bulkUpdate({ draft_status: null }) },
+          { label: "Delete forever", tone: "danger", run: bulkPermaDelete },
+        ];
+      // syndicated and all use the same generic actions
+      case "syndicated":
+      case "all":
+      default:
+        return [
+          { label: "Publish", tone: "primary",
+            run: () => bulkUpdate({ is_published: true, draft_status: null }, "Publish {n} post(s) now?") },
+          { label: "Trash", tone: "danger",
+            run: () => bulkUpdate({ draft_status: "trash", is_published: false }, "Move {n} post(s) to Trash?") },
+        ];
+    }
+  })();
+
+  const togglePageSelection = () => {
+    const allOnPageSelected = posts.length > 0 && posts.every((p) => selectedIds.has(p.id));
+    if (allOnPageSelected) {
+      const next = new Set(selectedIds);
+      posts.forEach((p) => next.delete(p.id));
+      setSelectedIds(next);
+    } else {
+      const next = new Set(selectedIds);
+      posts.forEach((p) => next.add(p.id));
+      setSelectedIds(next);
+    }
+  };
+
+  const toggleOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="bg-white border-b border-zinc-200 px-6 py-4">
@@ -220,6 +355,40 @@ export default function AdminPostsPage() {
           />
         </div>
 
+        {/* Bulk action bar — appears once at least one row is checked. The
+            buttons offered are tab-aware (see `bulkActions` switch above). */}
+        {selectedIds.size > 0 && (
+          <div className="mb-4 px-4 py-3 bg-white border border-zinc-200 rounded-xl flex flex-wrap items-center gap-3 shadow-sm">
+            <span className="text-sm font-medium text-zinc-700">
+              {selectedIds.size} selected
+            </span>
+            <span className="text-zinc-300">·</span>
+            {bulkActions.map((a) => (
+              <button
+                key={a.label}
+                onClick={a.run}
+                disabled={bulkBusy}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
+                  a.tone === "primary"
+                    ? "bg-brand-blue hover:bg-brand-blue-dark text-white"
+                    : a.tone === "danger"
+                    ? "bg-brand-red-light text-brand-red hover:bg-red-100"
+                    : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                }`}
+              >
+                {a.label}
+              </button>
+            ))}
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              disabled={bulkBusy}
+              className="ml-auto text-xs text-zinc-500 hover:text-zinc-900"
+            >
+              Clear selection
+            </button>
+          </div>
+        )}
+
         {/* Post list */}
         {loading && posts.length === 0 ? (
           <div className="space-y-2">{[...Array(8)].map((_, i) => <div key={i} className="h-14 bg-white rounded-lg animate-pulse" />)}</div>
@@ -230,6 +399,15 @@ export default function AdminPostsPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-zinc-100 text-left">
+                  <th className="px-4 py-3 w-10">
+                    <input
+                      type="checkbox"
+                      aria-label="Select all on page"
+                      checked={posts.length > 0 && posts.every((p) => selectedIds.has(p.id))}
+                      onChange={togglePageSelection}
+                      className="rounded border-zinc-300 text-brand-blue focus:ring-brand-blue cursor-pointer"
+                    />
+                  </th>
                   <th className="text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">
                     <button onClick={() => handleSort("title")} className="hover:text-zinc-900 inline-flex items-center gap-1">
                       Title{sortColumn === "title" && <span aria-hidden>{sortAsc ? "↑" : "↓"}</span>}
@@ -260,6 +438,15 @@ export default function AdminPostsPage() {
               <tbody>
                 {posts.map((post) => (
                   <tr key={post.id} className="border-b border-zinc-50 hover:bg-zinc-50 transition-colors">
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${post.title}`}
+                        checked={selectedIds.has(post.id)}
+                        onChange={() => toggleOne(post.id)}
+                        className="rounded border-zinc-300 text-brand-blue focus:ring-brand-blue cursor-pointer"
+                      />
+                    </td>
                     <td className="px-5 py-3">
                       <Link href={`/admin/posts/${post.id}`} className="text-sm font-medium text-zinc-900 hover:text-brand-blue line-clamp-1">
                         {post.title}
