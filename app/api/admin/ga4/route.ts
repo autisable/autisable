@@ -264,21 +264,22 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Detect the empty-metadata + undefined-message signature, which almost
-    // always means the Google Analytics Data API isn't enabled in the GCP
-    // project that owns this service account. Tell the admin exactly where
-    // to fix it.
-    const isApiNotEnabledSignature =
-      typeof e?.message === "string" &&
-      e.message.includes("undefined undefined") &&
-      (!e?.metadata || (typeof e.metadata === "object" && Object.keys(e.metadata as object).length === 0));
-
-    if (isApiNotEnabledSignature) {
-      const projectHint = projectId ? ` (project: ${projectId})` : "";
+    // The "undefined undefined: undefined" message is a gax/gRPC artifact: the
+    // underlying error response was missing status/code, so the wrapper
+    // stringifies the empty fields. There's no reliable way to distinguish
+    // the cause from the error object alone (gRPC Metadata is a class whose
+    // Object.keys returns its internal slots, so emptiness checks misfire).
+    // Surface the three common causes with the info needed to verify each.
+    if (typeof e?.message === "string" && e.message.includes("undefined undefined")) {
       const enableUrl = projectId
         ? `https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com?project=${projectId}`
         : "https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com";
-      msg = `Google Analytics Data API is not enabled in your GCP project${projectHint}. Enable it here: ${enableUrl} — service account: ${clientEmail || "(unknown)"}`;
+      msg = [
+        `GA4 API call failed with no status (typical of a misconfiguration). Check, in order:`,
+        `1. Google Analytics Data API enabled in GCP project${projectId ? ` "${projectId}"` : ""}: ${enableUrl}`,
+        `2. Service account ${clientEmail || "(unknown)"} added as Viewer in GA4 Admin → Property Access Management for property ${cleanPropertyId}`,
+        `3. GA4_PROPERTY_ID (${cleanPropertyId}) is the numeric property ID, not a Measurement ID (G-...) or Stream ID`,
+      ].join(" • ");
     }
 
     return NextResponse.json({ error: msg, configured: true }, { status: 500 });
