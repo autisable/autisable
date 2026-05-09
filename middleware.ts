@@ -14,11 +14,13 @@ const REDIRECTS_TTL_MS = 60_000;
 
 async function getRedirects(): Promise<Map<string, RedirectEntry>> {
   if (redirectsCache && Date.now() < redirectsCache.expiresAt) {
+    console.log("[redirects] cache HIT, size=", redirectsCache.map.size);
     return redirectsCache.map;
   }
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !serviceKey) {
+    console.log("[redirects] env missing — supabaseUrl?", !!supabaseUrl, "serviceKey?", !!serviceKey);
     return redirectsCache?.map ?? new Map();
   }
   try {
@@ -26,15 +28,11 @@ async function getRedirects(): Promise<Map<string, RedirectEntry>> {
       `${supabaseUrl}/rest/v1/redirects?select=from_path,to_path,status_code`,
       {
         headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` },
-        // Edge fetches default to caching; force fresh so new admin
-        // redirects are picked up at the next TTL boundary, not stuck on a
-        // cached HTTP response.
         cache: "no-store",
       }
     );
     if (!res.ok) {
-      // On transient supabase failure: keep serving the previous cache rather
-      // than dropping all redirects on every request.
+      console.log("[redirects] fetch !ok", res.status, res.statusText);
       return redirectsCache?.map ?? new Map();
     }
     const rows = (await res.json()) as Array<{
@@ -46,8 +44,10 @@ async function getRedirects(): Promise<Map<string, RedirectEntry>> {
       rows.map((r) => [r.from_path, { to: r.to_path, status: r.status_code }])
     );
     redirectsCache = { map, expiresAt: Date.now() + REDIRECTS_TTL_MS };
+    console.log("[redirects] cache MISS — fetched", rows.length, "rows. has /login/?", map.has("/login/"));
     return map;
-  } catch {
+  } catch (err) {
+    console.log("[redirects] fetch threw", String(err));
     return redirectsCache?.map ?? new Map();
   }
 }
@@ -96,7 +96,16 @@ export async function middleware(request: NextRequest) {
       const dest = entry.to.startsWith("http")
         ? entry.to
         : new URL(entry.to, request.url).toString();
-      return NextResponse.redirect(dest, entry.status);
+      console.log("[redirects] MATCH", pathname, "->", dest, "status=", entry.status);
+      // Safety: if destination resolves to the same URL as the request, skip
+      // the redirect to avoid an infinite loop from a self-referential row.
+      const reqUrl = new URL(request.url);
+      const destUrl = new URL(dest);
+      if (reqUrl.pathname === destUrl.pathname && reqUrl.host === destUrl.host) {
+        console.log("[redirects] SELF-LOOP detected, skipping redirect for", pathname);
+      } else {
+        return NextResponse.redirect(dest, entry.status);
+      }
     }
   }
 
