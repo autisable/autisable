@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import ImageExtension from "@tiptap/extension-image";
@@ -94,6 +95,24 @@ export default function RichTextEditor({ content, onChange }: Props) {
       onChange(e.getHTML());
     },
   });
+
+  // Sync external content updates back into the editor. TipTap's
+  // `useEditor` reads `content` only at mount and ignores subsequent
+  // prop changes, so without this effect the Reformat Paragraphs flow
+  // (which writes back via updateField) updates React state but leaves
+  // the editor displaying the old text.
+  //
+  // We compare against the editor's own serialized HTML to avoid an
+  // infinite loop: when the user types, onUpdate calls onChange, the
+  // parent state updates, and a new `content` prop arrives — but it
+  // matches `editor.getHTML()`, so setContent is skipped.
+  useEffect(() => {
+    if (!editor) return;
+    if (content === editor.getHTML()) return;
+    // emitUpdate=false so this reset doesn't fire onUpdate and round-trip
+    // through onChange.
+    editor.commands.setContent(content, { emitUpdate: false });
+  }, [content, editor]);
 
   if (!editor) return null;
 
