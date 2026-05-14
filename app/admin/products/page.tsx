@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
+import { adminFetch } from "@/app/lib/adminFetch";
 
 const supabase = getSupabase();
 
@@ -46,6 +47,42 @@ export default function AdminProductsPage() {
   const [filter, setFilter] = useState<"all" | Storefront>("all");
   const [draft, setDraft] = useState<Omit<Product, "id">>({ ...EMPTY });
   const [addError, setAddError] = useState<string | null>(null);
+  const [importStorefront, setImportStorefront] = useState<Storefront>("bookshop");
+  const [importClear, setImportClear] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const importFileRef = useRef<HTMLInputElement>(null);
+
+  const runImport = async (file: File) => {
+    setImportBusy(true);
+    setImportStatus(null);
+    try {
+      const params = new URLSearchParams({ storefront: importStorefront });
+      if (importClear) params.set("clear", "true");
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await adminFetch(`/api/admin/products/import?${params.toString()}`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        setImportStatus(`Import failed: ${data.error || `HTTP ${res.status}`}`);
+        return;
+      }
+      const skippedMsg = data.skippedCount > 0
+        ? ` · ${data.skippedCount} row${data.skippedCount === 1 ? "" : "s"} skipped`
+        : "";
+      const clearedMsg = data.cleared ? " (existing rows for these storefronts were cleared first)" : "";
+      setImportStatus(`Imported ${data.inserted} products${skippedMsg}${clearedMsg}.`);
+      void load();
+    } catch (err) {
+      setImportStatus(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setImportBusy(false);
+      if (importFileRef.current) importFileRef.current.value = "";
+    }
+  };
 
   const load = useCallback(async () => {
     if (!supabase) return;
@@ -138,6 +175,57 @@ export default function AdminProductsPage() {
             Impressions fire when a card crosses 50% into the viewport; clicks fire on link
             interaction. See the <Link href="/admin/ad-metrics" className="text-brand-blue hover:underline">metrics page</Link> for performance over time.
           </p>
+        </div>
+
+        <div className="bg-white border border-zinc-100 rounded-xl p-4 mb-6">
+          <h2 className="text-sm font-semibold text-zinc-900 mb-3">Import from CSV</h2>
+          <p className="text-xs text-zinc-500 mb-3">
+            Expected columns (case-insensitive): <span className="font-mono">Name</span>,{" "}
+            <span className="font-mono">Product URL</span> (both required),{" "}
+            <span className="font-mono">Image URL</span>, <span className="font-mono">Regular price ($)</span>,{" "}
+            <span className="font-mono">Category</span>, <span className="font-mono">Tags</span>,{" "}
+            <span className="font-mono">Storefront</span> (optional — falls back to the dropdown below).
+          </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="text-xs text-zinc-600 flex items-center gap-2">
+              Default storefront
+              <select
+                value={importStorefront}
+                onChange={(e) => setImportStorefront(e.target.value as Storefront)}
+                className="px-2 py-1 text-xs border border-zinc-200 rounded-lg"
+              >
+                {(Object.keys(STOREFRONT_LABEL) as Storefront[]).map((k) => (
+                  <option key={k} value={k}>{STOREFRONT_LABEL[k]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-zinc-600 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={importClear}
+                onChange={(e) => setImportClear(e.target.checked)}
+              />
+              Wipe existing rows for this storefront first (full reseed)
+            </label>
+            <label className={`inline-flex items-center px-3 py-1.5 text-xs font-medium border border-zinc-200 rounded-lg cursor-pointer hover:bg-zinc-50 ${importBusy ? "opacity-60 pointer-events-none" : ""}`}>
+              {importBusy ? "Importing…" : "Choose CSV file"}
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void runImport(f);
+                }}
+              />
+            </label>
+          </div>
+          {importStatus && (
+            <p className={`mt-3 text-xs ${importStatus.startsWith("Imported") ? "text-brand-green" : "text-brand-red"}`}>
+              {importStatus}
+            </p>
+          )}
         </div>
 
         <div className="bg-white border border-zinc-100 rounded-xl p-4 mb-6">

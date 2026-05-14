@@ -47,8 +47,9 @@ social-login*.json
 # spec doc (confidential)
 *.docx
 
-# CSV data files
+# CSV / Excel data files (product imports, etc.)
 *.csv
+*.xlsx
 
 # Other projects accidentally in this dir
 vizyplan-agents*/
