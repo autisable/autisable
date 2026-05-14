@@ -1,15 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
 import FeedActions from "@/app/components/community/FeedActions";
-import FeedCompose from "@/app/components/community/FeedCompose";
+import FeedCompose, { type FeedComposeHandle } from "@/app/components/community/FeedCompose";
 import FeedItemMenu from "@/app/components/community/FeedItemMenu";
 import { relativeTime } from "@/app/lib/relativeTime";
 import type { Role } from "@/app/lib/roles";
 
 const supabase = getSupabase();
+
+type Visibility = "all_members" | "followers";
 
 interface FeedItem {
   id: string;
@@ -22,12 +24,13 @@ interface FeedItem {
   type: "journal" | "post";
   // Source table — distinct from `type`. Used to scope reactions / replies.
   source: "activity" | "journal";
+  visibility?: Visibility;
   created_at: string;
   reactions_count: number;
   replies_count: number;
 }
 
-type FilterTab = "all" | "updates" | "journals";
+type FilterTab = "all" | "following" | "updates" | "journals";
 const PAGE_SIZE = 20;
 
 // Preview feed items for logged-out users
@@ -61,10 +64,12 @@ const previewFeed = [
 export default function CommunityPage() {
   const [feed, setFeed] = useState<FeedItem[]>([]);
   const [user, setUser] = useState<{ id: string; display_name: string | null; avatar_url: string | null; role: Role | null } | null>(null);
+  const [followingIds, setFollowingIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<FilterTab>("all");
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const composeRef = useRef<FeedComposeHandle>(null);
 
   /**
    * Loads one page of feed items. Pagination strategy: fetch the next page
@@ -74,20 +79,37 @@ export default function CommunityPage() {
    * `tab` filters which sources to query.
    */
   const loadPage = useCallback(
-    async (before: string | null, currentTab: FilterTab, currentUserId: string) => {
+    async (
+      before: string | null,
+      currentTab: FilterTab,
+      currentUserId: string,
+      currentFollowingIds: Set<string>
+    ) => {
       if (!supabase) return { items: [] as FeedItem[], reachedEnd: true };
 
-      const wantUpdates = currentTab === "all" || currentTab === "updates";
-      const wantJournals = currentTab === "all" || currentTab === "journals";
+      const wantUpdates = currentTab === "all" || currentTab === "updates" || currentTab === "following";
+      const wantJournals = currentTab === "all" || currentTab === "journals" || currentTab === "following";
+
+      // Following tab with no follows yet → short-circuit. Saves two
+      // round-trips and produces an empty result that the UI surfaces
+      // with a "you don't follow anyone yet" prompt.
+      if (currentTab === "following" && currentFollowingIds.size === 0) {
+        return { items: [] as FeedItem[], reachedEnd: true };
+      }
+
+      const followedList = [...currentFollowingIds];
 
       const fetchUpdates = async () => {
-        if (!wantUpdates) return { data: [] as Array<{ id: string; user_id: string; display_name: string; content: string; image_url: string | null; type: string; created_at: string; reactions_count: number; replies_count: number }> };
+        if (!wantUpdates) return { data: [] as Array<{ id: string; user_id: string; display_name: string; content: string; image_url: string | null; type: string; visibility: Visibility | null; created_at: string; reactions_count: number; replies_count: number }> };
         let q = supabase
           .from("activity_feed")
-          .select("id, user_id, display_name, content, image_url, type, created_at, reactions_count, replies_count")
+          .select("id, user_id, display_name, content, image_url, type, visibility, created_at, reactions_count, replies_count")
           .order("created_at", { ascending: false })
           .limit(PAGE_SIZE);
         if (before) q = q.lt("created_at", before);
+        if (currentTab === "following") {
+          q = q.in("user_id", followedList);
+        }
         return q;
       };
 
@@ -100,23 +122,38 @@ export default function CommunityPage() {
           .order("created_at", { ascending: false })
           .limit(PAGE_SIZE);
         if (before) q = q.lt("created_at", before);
+        if (currentTab === "following") {
+          q = q.in("user_id", followedList);
+        }
         return q;
       };
 
       const [activityRes, journalsRes] = await Promise.all([fetchUpdates(), fetchJournals()]);
 
-      const activityItems: FeedItem[] = (activityRes.data || []).map((a) => ({
-        id: a.id,
-        user_id: a.user_id,
-        display_name: a.display_name,
-        content: a.content,
-        image_url: a.image_url,
-        type: (a.type as "post" | "journal") || "post",
-        source: "activity",
-        created_at: a.created_at,
-        reactions_count: a.reactions_count || 0,
-        replies_count: a.replies_count || 0,
-      }));
+      const activityItems: FeedItem[] = (activityRes.data || [])
+        // Followers-only status updates: visible to the poster and to
+        // anyone who follows them. RLS protects writes; this is the
+        // client-side filter for visibility on read so we don't show
+        // private-ish content to the wrong eyes.
+        .filter((a) => {
+          const vis = (a.visibility || "all_members") as Visibility;
+          if (vis === "all_members") return true;
+          if (a.user_id === currentUserId) return true;
+          return currentFollowingIds.has(a.user_id);
+        })
+        .map((a) => ({
+          id: a.id,
+          user_id: a.user_id,
+          display_name: a.display_name,
+          content: a.content,
+          image_url: a.image_url,
+          type: (a.type as "post" | "journal") || "post",
+          source: "activity" as const,
+          visibility: (a.visibility || "all_members") as Visibility,
+          created_at: a.created_at,
+          reactions_count: a.reactions_count || 0,
+          replies_count: a.replies_count || 0,
+        }));
 
       // Resolve display names + avatars for everyone shown in the feed (both
       // activity_feed posters and journal authors). One batched lookup so we
@@ -140,8 +177,14 @@ export default function CommunityPage() {
       });
 
       const journalItems: FeedItem[] = (journalsRes.data || [])
-        // Followers visibility: until follow system ships, show only own entries
-        .filter((j) => j.visibility === "all_members" || j.user_id === currentUserId)
+        // Followers-visibility journals: only show to owner or follower.
+        // Mirrors the activity_feed filter for consistency.
+        .filter((j) => {
+          if (j.visibility === "all_members") return true;
+          if (j.user_id === currentUserId) return true;
+          if (j.visibility === "followers") return currentFollowingIds.has(j.user_id);
+          return false;
+        })
         .map((j) => {
           const profile = profileById.get(j.user_id);
           return {
@@ -206,7 +249,7 @@ export default function CommunityPage() {
     []
   );
 
-  // Initial load: get the user, then the first page for the current tab.
+  // Initial load: get the user, their followings, then the first page.
   useEffect(() => {
     const load = async () => {
       if (!supabase) { setLoading(false); return; }
@@ -217,19 +260,25 @@ export default function CommunityPage() {
         return;
       }
 
-      const { data: meProfile } = await supabase
-        .from("user_profiles")
-        .select("display_name, avatar_url, role")
-        .eq("id", u.id)
-        .single();
+      const [meRes, followsRes] = await Promise.all([
+        supabase
+          .from("user_profiles")
+          .select("display_name, avatar_url, role")
+          .eq("id", u.id)
+          .single(),
+        supabase.from("follows").select("following_id").eq("follower_id", u.id),
+      ]);
+
       setUser({
         id: u.id,
-        display_name: meProfile?.display_name || null,
-        avatar_url: meProfile?.avatar_url || null,
-        role: (meProfile?.role as Role | undefined) || null,
+        display_name: meRes.data?.display_name || null,
+        avatar_url: meRes.data?.avatar_url || null,
+        role: (meRes.data?.role as Role | undefined) || null,
       });
+      const ids = new Set((followsRes.data || []).map((r) => r.following_id as string));
+      setFollowingIds(ids);
 
-      const { items, reachedEnd } = await loadPage(null, tab, u.id);
+      const { items, reachedEnd } = await loadPage(null, tab, u.id, ids);
       setFeed(items);
       setHasMore(!reachedEnd);
       setLoading(false);
@@ -243,7 +292,7 @@ export default function CommunityPage() {
     if (!user || loadingMore || !hasMore || feed.length === 0) return;
     setLoadingMore(true);
     const oldestSeen = feed[feed.length - 1].created_at;
-    const { items, reachedEnd } = await loadPage(oldestSeen, tab, user.id);
+    const { items, reachedEnd } = await loadPage(oldestSeen, tab, user.id, followingIds);
     setFeed((prev) => [...prev, ...items]);
     setHasMore(!reachedEnd);
     setLoadingMore(false);
@@ -345,15 +394,19 @@ export default function CommunityPage() {
         <>
           {/* Compose */}
           <FeedCompose
+            ref={composeRef}
             currentUserId={user.id}
             currentUserDisplayName={user.display_name || "Member"}
             currentUserAvatarUrl={user.avatar_url}
             onPosted={handlePosted}
           />
 
-          {/* Filter tabs */}
+          {/* Filter tabs. "Following" sits between All and the source-
+              specific tabs per the spec — it's the second most common
+              entry point after the firehose. */}
           <div className="flex items-center gap-1.5 mb-5 overflow-x-auto">
             <button onClick={() => setTab("all")} className={tabBtnClass(tab === "all")}>All</button>
+            <button onClick={() => setTab("following")} className={tabBtnClass(tab === "following")}>Following</button>
             <button onClick={() => setTab("updates")} className={tabBtnClass(tab === "updates")}>Status updates</button>
             <button onClick={() => setTab("journals")} className={tabBtnClass(tab === "journals")}>Journals</button>
           </div>
@@ -372,15 +425,22 @@ export default function CommunityPage() {
               ))}
             </div>
           ) : feed.length === 0 ? (
-            <div className="text-center py-16">
+            <button
+              type="button"
+              onClick={() => composeRef.current?.focus()}
+              className="w-full text-center py-16 bg-white rounded-2xl border border-dashed border-zinc-200 hover:border-brand-blue/40 transition-colors"
+            >
               <p className="text-zinc-500">
-                {tab === "all"
-                  ? "No activity yet. Be the first to share!"
-                  : tab === "updates"
-                  ? "No status updates yet."
-                  : "No journal entries shared yet."}
+                {tab === "following"
+                  ? followingIds.size === 0
+                    ? "You don't follow anyone yet. Browse members to fill this feed."
+                    : "No recent posts from people you follow."
+                  : "Be the first to post something today."}
               </p>
-            </div>
+              {tab !== "following" && (
+                <p className="text-xs text-zinc-400 mt-2">Tap to start writing</p>
+              )}
+            </button>
           ) : (
             <>
               <div className="space-y-4">
@@ -417,6 +477,11 @@ export default function CommunityPage() {
                             {item.source === "journal" && (
                               <span className="px-2 py-0.5 bg-zinc-100 text-zinc-500 rounded-full text-[10px] font-medium">
                                 Journal
+                              </span>
+                            )}
+                            {item.visibility === "followers" && (
+                              <span className="px-2 py-0.5 bg-brand-blue-light text-brand-blue rounded-full text-[10px] font-medium">
+                                Followers
                               </span>
                             )}
                           </div>

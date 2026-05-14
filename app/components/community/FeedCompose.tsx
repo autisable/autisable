@@ -1,11 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
 import { adminFetch } from "@/app/lib/adminFetch";
 
 const supabase = getSupabase();
+
+type Visibility = "all_members" | "followers";
 
 interface Props {
   currentUserId: string;
@@ -21,23 +23,53 @@ interface Props {
     image_url: string | null;
     type: "post";
     source: "activity";
+    visibility: Visibility;
     created_at: string;
     reactions_count: number;
     replies_count: number;
   }) => void;
 }
 
+export interface FeedComposeHandle {
+  focus: () => void;
+}
+
 const MAX_LENGTH = 2000;
 // Q9: at this length we suggest the user might want a full blog post instead.
 const BLOG_PROMPT_THRESHOLD = 300;
+const VISIBILITY_STORAGE_KEY = "autisable.feed.visibility";
 
-export default function FeedCompose({ currentUserId, currentUserDisplayName, currentUserAvatarUrl, onPosted }: Props) {
+const FeedCompose = forwardRef<FeedComposeHandle, Props>(function FeedCompose(
+  { currentUserId, currentUserDisplayName, currentUserAvatarUrl, onPosted },
+  ref
+) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [content, setContent] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [imageBusy, setImageBusy] = useState(false);
   const [posting, setPosting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [visibility, setVisibility] = useState<Visibility>("all_members");
+
+  // Restore the member's last-used visibility from localStorage so a
+  // privacy-conscious member doesn't have to reselect Followers Only on
+  // every visit. Falls through to All Members when nothing is stored or
+  // the stored value is unrecognized.
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(VISIBILITY_STORAGE_KEY);
+      if (stored === "all_members" || stored === "followers") {
+        setVisibility(stored);
+      }
+    } catch {
+      // localStorage can throw in private-mode Safari — silently ignore.
+    }
+  }, []);
+
+  useImperativeHandle(ref, () => ({
+    focus: () => textareaRef.current?.focus(),
+  }));
 
   const trimmed = content.trim();
   const overLimit = content.length > MAX_LENGTH;
@@ -80,14 +112,22 @@ export default function FeedCompose({ currentUserId, currentUserDisplayName, cur
         content: trimmed,
         image_url: imageUrl,
         type: "post",
+        visibility,
       })
-      .select("id, user_id, display_name, content, image_url, created_at, reactions_count, replies_count")
+      .select("id, user_id, display_name, content, image_url, visibility, created_at, reactions_count, replies_count")
       .single();
 
     if (insertErr || !data) {
       setError(insertErr?.message || "Couldn't post. Try again.");
       setPosting(false);
       return;
+    }
+
+    // Persist last-used visibility for the next composer open.
+    try {
+      window.localStorage.setItem(VISIBILITY_STORAGE_KEY, visibility);
+    } catch {
+      // Ignore storage failures — they don't affect the post.
     }
 
     onPosted({
@@ -99,6 +139,7 @@ export default function FeedCompose({ currentUserId, currentUserDisplayName, cur
       image_url: data.image_url,
       type: "post",
       source: "activity",
+      visibility: (data.visibility as Visibility) || visibility,
       created_at: data.created_at,
       reactions_count: data.reactions_count || 0,
       replies_count: data.replies_count || 0,
@@ -127,6 +168,7 @@ export default function FeedCompose({ currentUserId, currentUserDisplayName, cur
           )}
         </div>
         <textarea
+          ref={textareaRef}
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder={placeholder}
@@ -164,8 +206,8 @@ export default function FeedCompose({ currentUserId, currentUserDisplayName, cur
         </div>
       )}
 
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="mt-3 flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <input
             ref={fileInputRef}
             type="file"
@@ -189,17 +231,34 @@ export default function FeedCompose({ currentUserId, currentUserDisplayName, cur
             {content.length}/{MAX_LENGTH}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={handlePost}
-          disabled={!canPost}
-          className="px-5 py-1.5 text-sm bg-brand-blue hover:bg-brand-blue-dark text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {posting ? "Posting..." : "Post"}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Visibility selector — same model as journal_entries, so the
+              feed query can filter Followers Only posts using the existing
+              follows table without new infrastructure. */}
+          <label className="sr-only" htmlFor="post-visibility">Who can see this</label>
+          <select
+            id="post-visibility"
+            value={visibility}
+            onChange={(e) => setVisibility(e.target.value as Visibility)}
+            className="px-2 py-1.5 text-xs border border-zinc-200 rounded-lg text-zinc-600 focus:ring-2 focus:ring-brand-blue"
+          >
+            <option value="all_members">All Members</option>
+            <option value="followers">Followers Only</option>
+          </select>
+          <button
+            type="button"
+            onClick={handlePost}
+            disabled={!canPost}
+            className="px-5 py-1.5 text-sm bg-brand-blue hover:bg-brand-blue-dark text-white font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {posting ? "Posting..." : "Post"}
+          </button>
+        </div>
       </div>
 
       {error && <p className="mt-2 text-xs text-brand-red">{error}</p>}
     </div>
   );
-}
+});
+
+export default FeedCompose;
