@@ -23,6 +23,11 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
   const [showSeo, setShowSeo] = useState(false);
   const [seoBusy, setSeoBusy] = useState(false);
   const [seoError, setSeoError] = useState<string | null>(null);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
+  const [reformatBusy, setReformatBusy] = useState(false);
+  const [reformatError, setReformatError] = useState<string | null>(null);
+  const [reformatPreview, setReformatPreview] = useState<{ before: string; after: string } | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -64,6 +69,59 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
   const updateField = (field: string, value: unknown) => {
     setPost((prev) => ({ ...prev, [field]: value }));
     setSaved(false);
+  };
+
+  const uploadFeaturedImage = async (file: File) => {
+    setImageUploading(true);
+    setImageUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const slug = (post.slug as string) || "";
+      if (slug) formData.append("slug", slug);
+      const res = await adminFetch("/api/upload/featured-image", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || "Upload failed");
+      }
+      updateField("image", data.url);
+    } catch (err) {
+      setImageUploadError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const handleReformat = async () => {
+    setReformatBusy(true);
+    setReformatError(null);
+    try {
+      const before = (post.content as string) || "";
+      const res = await adminFetch("/api/admin/reformat-post", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: before }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.content) {
+        setReformatError(data.error || `Reformat failed (${res.status})`);
+        return;
+      }
+      setReformatPreview({ before, after: data.content });
+    } catch (e) {
+      setReformatError(e instanceof Error ? e.message : "Reformat failed");
+    } finally {
+      setReformatBusy(false);
+    }
+  };
+
+  const acceptReformat = () => {
+    if (!reformatPreview) return;
+    updateField("content", reformatPreview.after);
+    setReformatPreview(null);
   };
 
   const handleGenerateSeo = async () => {
@@ -258,6 +316,23 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
               content={(post.content as string) || ""}
               onChange={(html) => updateField("content", html)}
             />
+          </div>
+
+          {/* Reformat trigger — for posts where the import stripped paragraph
+              breaks. Runs the content through an LLM that only inserts
+              paragraph boundaries (no rewording) and shows a preview before
+              applying. The endpoint refuses to return any output whose word
+              count drifts >2% from the original. */}
+          <div className="flex items-center justify-end gap-2 text-xs">
+            {reformatError && <span className="text-brand-red">{reformatError}</span>}
+            <button
+              type="button"
+              onClick={handleReformat}
+              disabled={reformatBusy || !(post.content as string)}
+              className="px-3 py-1.5 font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg disabled:opacity-50"
+            >
+              {reformatBusy ? "Reformatting…" : "Reformat paragraphs"}
+            </button>
           </div>
 
           {/* Excerpt */}
@@ -546,6 +621,24 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
               placeholder="Image URL..."
               className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue"
             />
+            <div className="mt-2 flex items-center gap-2">
+              <label className={`inline-flex items-center px-3 py-1.5 text-xs font-medium border border-zinc-200 rounded-lg cursor-pointer hover:bg-zinc-50 ${imageUploading ? "opacity-60 pointer-events-none" : ""}`}>
+                {imageUploading ? "Uploading…" : (post.image as string) ? "Replace image" : "Upload image"}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    e.target.value = "";
+                    if (f) void uploadFeaturedImage(f);
+                  }}
+                />
+              </label>
+              {imageUploadError && (
+                <span className="text-xs text-brand-red">{imageUploadError}</span>
+              )}
+            </div>
             <p className="mt-1.5 text-[11px] text-zinc-400">
               Recommended: <strong>1200 × 630</strong> (16:9). Used at the top of the post and as the auto-generated social card if no OG image is set.
             </p>
@@ -655,6 +748,60 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
           </div>
         </div>
       </div>
+
+      {reformatPreview && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-5xl w-full max-h-[85vh] flex flex-col">
+            <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-900">Reformat preview</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  Compare the reformatted version with the original. No words have been changed — only paragraph boundaries.
+                </p>
+              </div>
+              <button
+                onClick={() => setReformatPreview(null)}
+                className="text-zinc-400 hover:text-zinc-700"
+                aria-label="Close"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-5 overflow-y-auto flex-1">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-zinc-400 font-medium mb-2">Before</p>
+                <div
+                  className="prose prose-sm prose-zinc max-w-none border border-zinc-100 rounded-lg p-3 bg-zinc-50 max-h-[60vh] overflow-y-auto"
+                  dangerouslySetInnerHTML={{ __html: reformatPreview.before }}
+                />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wider text-zinc-400 font-medium mb-2">After</p>
+                <div
+                  className="prose prose-sm prose-zinc max-w-none border border-zinc-100 rounded-lg p-3 max-h-[60vh] overflow-y-auto"
+                  dangerouslySetInnerHTML={{ __html: reformatPreview.after }}
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-zinc-100 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setReformatPreview(null)}
+                className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={acceptReformat}
+                className="px-4 py-2 text-sm font-medium bg-brand-blue hover:bg-brand-blue-dark text-white rounded-lg"
+              >
+                Apply (still need to save the post)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

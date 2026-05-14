@@ -12,6 +12,7 @@ interface Summary {
   missing_excerpt: number;
   missing_featured_image: number;
   syndicated_no_canonical: number;
+  needs_reformat: number;
 }
 
 interface PostRow {
@@ -30,6 +31,7 @@ const ISSUES = [
   { key: "missing_excerpt", label: "Missing Excerpt", desc: "Posts without a manual excerpt. Affects how the post appears in listings and AI summaries." },
   { key: "missing_featured_image", label: "Missing Featured Image", desc: "Posts without a hero image. Showing the Autisable logo placeholder." },
   { key: "syndicated_no_canonical", label: "Syndicated, No Canonical", desc: "Posts marked as syndicated but missing a canonical URL — risks duplicate-content penalties." },
+  { key: "needs_reformat", label: "Needs Reformatting", desc: "Long posts with little to no paragraph structure — typically WordPress imports where formatting was stripped. Open the post and click Reformat in the editor to insert paragraph breaks without changing any words." },
 ];
 
 const SITE_CHECKS = [
