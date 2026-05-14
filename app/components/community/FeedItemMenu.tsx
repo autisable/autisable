@@ -80,15 +80,31 @@ export default function FeedItemMenu({
   const handleReport = async () => {
     setBusy(true);
     setError(null);
-    const { error: reportErr } = await supabase.from("moderation_reports").insert({
-      reporter_id: currentUserId,
-      content_type: "activity_feed",
-      content_id: itemId,
-      reason: reportReason.trim() || "Flagged for moderator review",
+    // Use the moderation endpoint so the report row is persisted AND an
+    // email goes to moderators — a direct supabase insert would skip the
+    // email entirely.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setBusy(false);
+      setError("You need to be signed in to report content.");
+      return;
+    }
+    const res = await fetch("/api/moderation/report", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        content_type: "activity_feed",
+        content_id: itemId,
+        reason: reportReason.trim(),
+      }),
     });
     setBusy(false);
-    if (reportErr) {
-      setError(reportErr.message);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || `Could not submit report (${res.status})`);
       return;
     }
     setReportSent(true);
