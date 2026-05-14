@@ -67,3 +67,50 @@ export async function pickAffiliate(
   if (eligible.length === 0) return null;
   return eligible[Math.floor(Math.random() * eligible.length)] as Affiliate;
 }
+
+/**
+ * Returns up to `count` distinct affiliates for inline placements within a
+ * post. Shuffles eligible affiliates so different visits rotate slots, but
+ * never repeats the same partner inside a single render — three identical
+ * banners in one article would look like ad-stuffing. If fewer than `count`
+ * affiliates are eligible, returns whatever's available.
+ */
+export async function pickAffiliates(
+  placement: "sidebar" | "footer",
+  category: string | null,
+  tags: string[] | null,
+  count: number
+): Promise<Affiliate[]> {
+  if (count <= 0 || !supabaseAdmin) return [];
+  const placementCol = placement === "sidebar" ? "show_in_sidebar" : "show_in_footer";
+
+  const { data } = await supabaseAdmin
+    .from("affiliates")
+    .select("id, slug, name, tagline, cta_label, click_url, banner_300x250_url, banner_468x60_url, category_filter, tag_filter")
+    .eq("is_active", true)
+    .eq(placementCol, true)
+    .order("position", { ascending: true });
+
+  if (!data || data.length === 0) return [];
+
+  const lowerTags = (tags || []).map((t) => t.toLowerCase().trim());
+  const eligible = data.filter((a) => {
+    const catFilter = a.category_filter as string[] | null;
+    const tagFilter = a.tag_filter as string[] | null;
+    const hasCatFilter = !!catFilter && catFilter.length > 0;
+    const hasTagFilter = !!tagFilter && tagFilter.length > 0;
+    if (!hasCatFilter && !hasTagFilter) return true;
+    const catMatches = hasCatFilter && category ? catFilter.includes(category) : false;
+    const tagMatches = hasTagFilter
+      ? tagFilter.some((t) => lowerTags.includes(t.toLowerCase().trim()))
+      : false;
+    return catMatches || tagMatches;
+  });
+
+  // Fisher-Yates shuffle, then slice.
+  for (let i = eligible.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
+  }
+  return eligible.slice(0, count) as Affiliate[];
+}

@@ -1,12 +1,17 @@
 "use client";
 
+import { Fragment, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import Comments from "../Comments";
 import BlogShareButtons from "./BlogShareButtons";
 import NewsletterPopup from "./NewsletterPopup";
 import AffiliateBanner from "../AffiliateBanner";
+import ProductGrid from "../ProductGrid";
+import TrackedAdSlot from "../TrackedAdSlot";
 import type { Affiliate } from "@/app/lib/pickAffiliate";
+import type { Product } from "@/app/lib/pickProducts";
+import { splitByParagraph, chooseInlineAdPositions } from "@/app/lib/splitContentForAds";
 
 interface Post {
   id: string;
@@ -51,9 +56,34 @@ interface Props {
   relatedPosts: RelatedPost[];
   author?: Author | null;
   affiliate?: Affiliate | null;
+  inlineAffiliates?: Affiliate[];
+  inlineProducts?: Product[];
 }
 
-export default function BlogPostClient({ post, relatedPosts, author, affiliate }: Props) {
+export default function BlogPostClient({
+  post,
+  relatedPosts,
+  author,
+  affiliate,
+  inlineAffiliates = [],
+  inlineProducts = [],
+}: Props) {
+  // Paragraph-anchored ad insertion. Splitting happens once per render via
+  // useMemo so we don't re-segment on unrelated state changes (popup open,
+  // etc.). Short posts get no inline ads — the existing bottom slot stays
+  // as the fallback.
+  //
+  // Slot layout, in document order: banner first, product grid second,
+  // optional banner last — matches the template ordering Joel speced
+  // (banner reads as low-friction, products as higher-commitment, third
+  // slot is optional if performance justifies it).
+  const contentChunks = useMemo(() => splitByParagraph(post.content || ""), [post.content]);
+  const hasProductSlot = inlineProducts.length > 0;
+  const totalInlineSlots = inlineAffiliates.length + (hasProductSlot ? 1 : 0);
+  const inlineAdPositions = useMemo(
+    () => chooseInlineAdPositions(contentChunks.length, totalInlineSlots),
+    [contentChunks.length, totalInlineSlots]
+  );
   return (
     <>
     <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -116,18 +146,72 @@ export default function BlogPostClient({ post, relatedPosts, author, affiliate }
         </a>
       </p>
 
-      {/* Content */}
-      <div
-        className="prose prose-zinc prose-lg max-w-none prose-headings:tracking-tight prose-a:text-brand-blue prose-img:rounded-xl"
-        dangerouslySetInnerHTML={{ __html: post.content }}
-      />
+      {/* Content — split into paragraph chunks so we can interleave inline
+          ad slots at paragraph boundaries instead of fixed pixel offsets.
+          When inlineAdPositions is empty (short post or no eligible
+          affiliates) this renders identically to a single dangerouslySetInnerHTML. */}
+      {inlineAdPositions.size === 0 || totalInlineSlots === 0 ? (
+        <div
+          className="prose prose-zinc prose-lg max-w-none prose-headings:tracking-tight prose-a:text-brand-blue prose-img:rounded-xl"
+          dangerouslySetInnerHTML={{ __html: post.content }}
+        />
+      ) : (
+        <div className="prose prose-zinc prose-lg max-w-none prose-headings:tracking-tight prose-a:text-brand-blue prose-img:rounded-xl">
+          {(() => {
+            // Slot ordering per the brief: banner first, then product grid,
+            // then a second banner (if there's a third paragraph position).
+            // We resolve "what goes at the k-th ad position" once, then
+            // walk paragraphs and emit the matching slot.
+            const slots: Array<
+              { kind: "banner"; affiliate: Affiliate } | { kind: "products" }
+            > = [];
+            const affiliateQueue = [...inlineAffiliates];
+            const firstAff = affiliateQueue.shift();
+            if (firstAff) slots.push({ kind: "banner", affiliate: firstAff });
+            if (hasProductSlot) slots.push({ kind: "products" });
+            const secondAff = affiliateQueue.shift();
+            if (secondAff) slots.push({ kind: "banner", affiliate: secondAff });
+
+            const sortedPositions = [...inlineAdPositions].sort((a, b) => a - b);
+            return contentChunks.map((chunk, i) => {
+              const slotIndex = sortedPositions.indexOf(i);
+              const slot = slotIndex >= 0 ? slots[slotIndex] : null;
+              return (
+                <Fragment key={i}>
+                  <div dangerouslySetInnerHTML={{ __html: chunk }} />
+                  {slot?.kind === "banner" && (
+                    <div className="not-prose my-10 flex justify-center">
+                      <TrackedAdSlot
+                        adId={slot.affiliate.id}
+                        adType="affiliate"
+                        pagePath={`/blog/${post.slug}/`}
+                      >
+                        <AffiliateBanner affiliate={slot.affiliate} size="300x250" />
+                      </TrackedAdSlot>
+                    </div>
+                  )}
+                  {slot?.kind === "products" && (
+                    <ProductGrid products={inlineProducts} pagePath={`/blog/${post.slug}/`} />
+                  )}
+                </Fragment>
+              );
+            });
+          })()}
+        </div>
+      )}
 
       {/* Affiliate slot — sits between the article and the author bio so it's
           visible without interrupting the read. Only renders if there's an
           eligible affiliate for this category. */}
       {affiliate && (
         <div className="mt-10 flex justify-center">
-          <AffiliateBanner affiliate={affiliate} size="300x250" />
+          <TrackedAdSlot
+            adId={affiliate.id}
+            adType="affiliate"
+            pagePath={`/blog/${post.slug}/`}
+          >
+            <AffiliateBanner affiliate={affiliate} size="300x250" />
+          </TrackedAdSlot>
         </div>
       )}
 

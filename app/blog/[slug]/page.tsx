@@ -2,7 +2,8 @@ import { supabaseAdmin } from "@/app/lib/supabase";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import BlogPostClient from "@/app/components/blog/BlogPostClient";
-import { pickAffiliate } from "@/app/lib/pickAffiliate";
+import { pickAffiliate, pickAffiliates } from "@/app/lib/pickAffiliate";
+import { pickProducts } from "@/app/lib/pickProducts";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -192,7 +193,14 @@ export default async function BlogPostPage({ params }: Props) {
   // different partners. Returns null if nothing eligible — BlogPostClient
   // renders no banner in that case.
   const postTags = Array.isArray(post.tags) ? (post.tags as string[]) : null;
-  const affiliate = await pickAffiliate("sidebar", post.category || null, postTags);
+  // One affiliate for the bottom slot, plus up to three distinct inline
+  // affiliates for paragraph-anchored placements. BlogPostClient decides
+  // how many to actually render based on the article's paragraph count.
+  const [affiliate, inlineAffiliates, inlineProducts] = await Promise.all([
+    pickAffiliate("sidebar", post.category || null, postTags),
+    pickAffiliates("sidebar", post.category || null, postTags, 2),
+    pickProducts(post.category || null, postTags, 3),
+  ]);
 
   return (
     <>
@@ -204,7 +212,14 @@ export default async function BlogPostPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
-      <BlogPostClient post={post} relatedPosts={related || []} author={author} affiliate={affiliate} />
+      <BlogPostClient
+        post={post}
+        relatedPosts={related || []}
+        author={author}
+        affiliate={affiliate}
+        inlineAffiliates={inlineAffiliates}
+        inlineProducts={inlineProducts}
+      />
     </>
   );
 }
