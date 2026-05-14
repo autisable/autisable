@@ -3,13 +3,24 @@ import { NextRequest } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabase";
 
 export const runtime = "nodejs";
-// Auto-generated OG images don't change unless the post does. Cache for an hour
-// at the edge; if the editor updates the title/image, we can bust this by
-// changing the URL (e.g. ?v=updated_at) — handled in generateMetadata.
 export const revalidate = 3600;
 
 const BRAND_BLUE = "#3b82f6";
 
+/**
+ * Legacy OG endpoint. We used to render a branded text card here
+ * (image-left, title/byline/URL on the right) but social platforms
+ * already provide title, URL, and excerpt chrome around the image — so
+ * the post title was appearing twice in every preview. Per Joel's
+ * direction, this now emits an image-only result identical to
+ * /api/og/featured/[slug]/: just the featured image cleanly resized
+ * to 1200x630, with a brand swatch fallback when the post has no
+ * image at all.
+ *
+ * Kept in place (rather than deleted) because LinkedIn / FB / X cache
+ * OG image URLs aggressively — 404ing this path would break previews
+ * that haven't been re-scraped since the change.
+ */
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -18,11 +29,13 @@ export async function GET(
 
   const { data: post } = await supabaseAdmin
     .from("blog_posts")
-    .select("title, image, category, author_name")
+    .select("image, og_image, title")
     .eq("slug", slug)
     .single();
 
-  if (!post) {
+  const sourceImage = post?.og_image || post?.image;
+
+  if (!sourceImage) {
     return new ImageResponse(
       (
         <div
@@ -34,8 +47,10 @@ export async function GET(
             justifyContent: "center",
             background: BRAND_BLUE,
             color: "white",
-            fontSize: 48,
+            fontSize: 96,
             fontFamily: "sans-serif",
+            fontWeight: 700,
+            letterSpacing: 2,
           }}
         >
           Autisable
@@ -45,11 +60,6 @@ export async function GET(
     );
   }
 
-  const title: string = post.title || "Autisable";
-  const category: string | null = post.category;
-  const author: string | null = post.author_name;
-  const image: string | null = post.image;
-
   return new ImageResponse(
     (
       <div
@@ -57,171 +67,21 @@ export async function GET(
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
-          background: "white",
-          fontFamily: "sans-serif",
-          position: "relative",
+          background: BRAND_BLUE,
         }}
       >
-        {/* Top stripe */}
-        <div
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={sourceImage}
+          width={1200}
+          height={630}
+          alt={post?.title || ""}
           style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 8,
-            background: BRAND_BLUE,
-            display: "flex",
+            width: 1200,
+            height: 630,
+            objectFit: "cover",
           }}
         />
-
-        {image ? (
-          // Layout: image on left half, content on right half
-          <div style={{ display: "flex", width: "100%", height: "100%" }}>
-            <img
-              src={image}
-              width={500}
-              height={630}
-              style={{
-                width: 500,
-                height: 630,
-                objectFit: "cover",
-              }}
-              alt=""
-            />
-            <div
-              style={{
-                flex: 1,
-                padding: "60px 60px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                {category ? (
-                  <div
-                    style={{
-                      fontSize: 22,
-                      fontWeight: 600,
-                      color: BRAND_BLUE,
-                      letterSpacing: 1.5,
-                      textTransform: "uppercase",
-                      marginBottom: 24,
-                      display: "flex",
-                    }}
-                  >
-                    {category}
-                  </div>
-                ) : null}
-                <div
-                  style={{
-                    fontSize: 52,
-                    fontWeight: 700,
-                    color: "#18181b",
-                    lineHeight: 1.15,
-                    display: "flex",
-                  }}
-                >
-                  {title.length > 100 ? title.slice(0, 100) + "…" : title}
-                </div>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                {author ? (
-                  <div
-                    style={{
-                      fontSize: 22,
-                      color: "#52525b",
-                      marginBottom: 8,
-                      display: "flex",
-                    }}
-                  >
-                    by {author}
-                  </div>
-                ) : null}
-                <div
-                  style={{
-                    fontSize: 24,
-                    fontWeight: 700,
-                    color: BRAND_BLUE,
-                    display: "flex",
-                  }}
-                >
-                  autisable.com
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : (
-          // No featured image — full text layout with brand background
-          <div
-            style={{
-              padding: "100px 80px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              width: "100%",
-              height: "100%",
-            }}
-          >
-            <div style={{ display: "flex", flexDirection: "column" }}>
-              {category ? (
-                <div
-                  style={{
-                    fontSize: 28,
-                    fontWeight: 600,
-                    color: BRAND_BLUE,
-                    letterSpacing: 2,
-                    textTransform: "uppercase",
-                    marginBottom: 32,
-                    display: "flex",
-                  }}
-                >
-                  {category}
-                </div>
-              ) : null}
-              <div
-                style={{
-                  fontSize: 72,
-                  fontWeight: 700,
-                  color: "#18181b",
-                  lineHeight: 1.1,
-                  display: "flex",
-                }}
-              >
-                {title.length > 80 ? title.slice(0, 80) + "…" : title}
-              </div>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              {author ? (
-                <div style={{ fontSize: 26, color: "#52525b", marginBottom: 8, display: "flex" }}>
-                  by {author}
-                </div>
-              ) : null}
-              <div
-                style={{
-                  fontSize: 32,
-                  fontWeight: 700,
-                  color: BRAND_BLUE,
-                  display: "flex",
-                }}
-              >
-                autisable.com
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     ),
     { width: 1200, height: 630 }

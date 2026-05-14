@@ -27,17 +27,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // syndicated posts it points to the original source so we don't compete
   // with the original for duplicate-content scoring.
   const canonical = post.canonical_url || autisableUrl;
-  // OG image: ALWAYS routed through /api/og/featured/[slug]/ when the post has
-  // any image (og_image or featured) so the output is guaranteed 1200x630 PNG
-  // under 300KB. The route reads og_image first, falling back to image — so
-  // editors can override per-post without bypassing the resize. Pointing
-  // og:image at a raw upload is what was breaking FB/LinkedIn previews
-  // (5-6MB unsplash files exceeded their preview limits).
-  // Brand text-card fallback only when both fields are null.
-  const hasImage = !!(post.og_image || post.image);
-  const ogImage = hasImage
-    ? `https://autisable.com/api/og/featured/${slug}/`
-    : `https://autisable.com/api/og/${slug}/`;
+  // OG image: ALWAYS image-only via /api/og/featured/[slug]/. LinkedIn,
+  // Facebook, and X all add their own title/URL/excerpt chrome around
+  // the image — baking a title overlay into the OG image was making the
+  // title render twice in every preview. The route handles the "no
+  // featured image" case internally by emitting a brand swatch, so this
+  // single URL works for every published post.
+  const ogImage = `https://autisable.com/api/og/featured/${slug}/`;
 
   // Build keywords list: focus first, then additional, then tags as fallback
   const allKeywords = [
@@ -132,9 +128,7 @@ export default async function BlogPostPage({ params }: Props) {
     description: post.meta_description || post.excerpt,
     // Same routing as the OG meta tags above — JSON-LD image goes through
     // the resize wrapper too so structured data and social preview agree.
-    image: hasImage
-      ? `https://autisable.com/api/og/featured/${slug}/`
-      : `https://autisable.com/api/og/${slug}/`,
+    image: `https://autisable.com/api/og/featured/${slug}/`,
     datePublished: post.date,
     dateModified: post.date_modified || post.date,
     mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
