@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getSupabase } from "@/app/lib/supabase-browser";
+import { adminFetch } from "@/app/lib/adminFetch";
+import { isBotUserAgent } from "@/app/lib/botDetection";
 
 const supabase = getSupabase();
 
@@ -20,6 +22,7 @@ interface GroupedRow {
   lastSeen: string;
   referrers: string[];
   userAgents: string[];
+  isBotOnly: boolean;
 }
 
 interface Redirect {
@@ -27,6 +30,15 @@ interface Redirect {
   from_path: string;
   to_path: string;
   status_code: number;
+}
+
+interface TestResult {
+  status: number;
+  ok: boolean;
+  finalUrl?: string;
+  redirected?: boolean;
+  error?: string;
+  testedAt: number;
 }
 
 const FETCH_LIMIT = 1000;
@@ -38,14 +50,16 @@ export default function AdminBrokenLinksPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [redirectInputs, setRedirectInputs] = useState<Record<string, string>>({});
   const [tab, setTab] = useState<"broken" | "redirects">("broken");
+  const [search, setSearch] = useState("");
+  const [hideBots, setHideBots] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
+  const [testing, setTesting] = useState<Set<string>>(new Set());
 
   const load = useCallback(async () => {
     if (!supabase) return;
     setLoading(true);
 
-    // Pull recent log rows + all existing redirects in parallel. 1000-row cap
-    // is enough to surface high-impact broken links; if you ever exceed it,
-    // pagination is an easy follow-up.
     const [logRes, redirRes] = await Promise.all([
       supabase
         .from("link_404_log")
@@ -59,10 +73,11 @@ export default function AdminBrokenLinksPage() {
     ]);
 
     const rows = (logRes.data || []) as LogRow[];
-    // Group by URL. Each group keeps a count, the most-recent timestamp, and
-    // up to 5 distinct referrers / user-agents so the editor can spot whether
-    // a 404 is real traffic vs a bot scan without scrolling raw rows.
+    // Group by URL. Each group tracks total hits, most recent timestamp,
+    // sample referrers/user-agents, and whether every observed UA looks
+    // like a bot — admins can hide bot-only rows so real traffic surfaces.
     const map = new Map<string, GroupedRow>();
+    const realUACount = new Map<string, number>();
     for (const row of rows) {
       const g = map.get(row.url) || {
         url: row.url,
@@ -70,6 +85,7 @@ export default function AdminBrokenLinksPage() {
         lastSeen: row.created_at,
         referrers: [],
         userAgents: [],
+        isBotOnly: true,
       };
       g.count += 1;
       if (row.created_at > g.lastSeen) g.lastSeen = row.created_at;
@@ -79,17 +95,74 @@ export default function AdminBrokenLinksPage() {
       if (row.user_agent && !g.userAgents.includes(row.user_agent) && g.userAgents.length < 3) {
         g.userAgents.push(row.user_agent);
       }
+      if (row.user_agent && !isBotUserAgent(row.user_agent)) {
+        realUACount.set(row.url, (realUACount.get(row.url) || 0) + 1);
+      }
       map.set(row.url, g);
     }
-    const list = [...map.values()].sort((a, b) => b.count - a.count || b.lastSeen.localeCompare(a.lastSeen));
+    for (const g of map.values()) {
+      g.isBotOnly = (realUACount.get(g.url) || 0) === 0;
+    }
+    const list = [...map.values()].sort(
+      (a, b) => b.count - a.count || b.lastSeen.localeCompare(a.lastSeen)
+    );
     setGrouped(list);
     setRedirects((redirRes.data || []) as Redirect[]);
+    setSelected(new Set());
     setLoading(false);
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  const filtered = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    return grouped.filter((g) => {
+      if (hideBots && g.isBotOnly) return false;
+      if (needle && !g.url.toLowerCase().includes(needle)) return false;
+      return true;
+    });
+  }, [grouped, search, hideBots]);
+
+  const hiddenCount = grouped.length - filtered.length;
+
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((g) => selected.has(g.url));
+
+  const toggleOne = (url: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(url)) next.delete(url);
+      else next.add(url);
+      return next;
+    });
+  };
+
+  const toggleAllFiltered = () => {
+    setSelected((prev) => {
+      if (allFilteredSelected) {
+        const next = new Set(prev);
+        for (const g of filtered) next.delete(g.url);
+        return next;
+      }
+      const next = new Set(prev);
+      for (const g of filtered) next.add(g.url);
+      return next;
+    });
+  };
+
+  const clearSelected = async () => {
+    if (!supabase || selected.size === 0) return;
+    const urls = [...selected];
+    if (!confirm(`Clear all 404 log entries for ${urls.length} URL${urls.length === 1 ? "" : "s"}?`)) {
+      return;
+    }
+    setBusy("__batch__");
+    await supabase.from("link_404_log").delete().in("url", urls);
+    setBusy(null);
+    void load();
+  };
 
   const addRedirect = async (fromPath: string) => {
     if (!supabase) return;
@@ -109,8 +182,6 @@ export default function AdminBrokenLinksPage() {
       setBusy(null);
       return;
     }
-    // Clear log entries for this URL — future hits go through the redirect
-    // and won't 404 anymore. Old log rows would just clutter the queue.
     await supabase.from("link_404_log").delete().eq("url", fromPath);
     setBusy(null);
     setRedirectInputs((prev) => {
@@ -137,6 +208,45 @@ export default function AdminBrokenLinksPage() {
     await supabase.from("redirects").delete().eq("id", id);
     setBusy(null);
     void load();
+  };
+
+  const testLink = async (url: string) => {
+    setTesting((prev) => new Set(prev).add(url));
+    try {
+      const res = await adminFetch("/api/admin/test-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      setTestResults((prev) => ({
+        ...prev,
+        [url]: {
+          status: data.status ?? 0,
+          ok: !!data.ok,
+          finalUrl: data.finalUrl,
+          redirected: data.redirected,
+          error: data.error,
+          testedAt: Date.now(),
+        },
+      }));
+    } catch (err) {
+      setTestResults((prev) => ({
+        ...prev,
+        [url]: {
+          status: 0,
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+          testedAt: Date.now(),
+        },
+      }));
+    } finally {
+      setTesting((prev) => {
+        const next = new Set(prev);
+        next.delete(url);
+        return next;
+      });
+    }
   };
 
   return (
@@ -173,13 +283,12 @@ export default function AdminBrokenLinksPage() {
           {tab === "broken" ? (
             <>
               <p>
-                URLs that returned 404 in the last {grouped.length > 0 ? "session" : "while"}, grouped by URL.
-                Higher counts surface first.
+                URLs that returned 404, grouped by URL. Higher counts surface first. Use{" "}
+                <span className="font-medium">Test link</span> to re-check a URL before adding a redirect —
+                if it now returns 200 you can just clear the row.
               </p>
               <p className="mt-1 text-xs text-zinc-500">
-                For each row you can: (a) add a 301 redirect inline (takes effect within ~60s; future hits
-                bypass the 404 and the row disappears from this list), or (b) clear the log entries if you
-                fixed the source link or it&apos;s noise from a bot scan.
+                Bot-only rows are hidden by default. Toggle below to include them.
               </p>
             </>
           ) : (
@@ -190,6 +299,42 @@ export default function AdminBrokenLinksPage() {
           )}
         </div>
 
+        {tab === "broken" && !loading && grouped.length > 0 && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 bg-white border border-zinc-100 rounded-xl p-3">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by URL fragment (e.g. 'product', '/2019/')"
+              className="flex-1 min-w-[220px] px-3 py-1.5 text-sm border border-zinc-200 rounded-lg focus:ring-2 focus:ring-brand-blue"
+            />
+            <label className="flex items-center gap-2 text-xs text-zinc-600 select-none">
+              <input
+                type="checkbox"
+                checked={hideBots}
+                onChange={(e) => setHideBots(e.target.checked)}
+                className="rounded"
+              />
+              Hide bot-only rows
+            </label>
+            <div className="text-xs text-zinc-500">
+              Showing {filtered.length} of {grouped.length}
+              {hiddenCount > 0 && ` · ${hiddenCount} hidden`}
+            </div>
+            {selected.size > 0 && (
+              <button
+                onClick={clearSelected}
+                disabled={busy === "__batch__"}
+                className="ml-auto px-3 py-1.5 text-xs font-medium bg-brand-red hover:bg-brand-red/90 text-white rounded-lg disabled:opacity-50"
+              >
+                {busy === "__batch__"
+                  ? "Clearing…"
+                  : `Clear selected (${selected.size})`}
+              </button>
+            )}
+          </div>
+        )}
+
         {loading ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
@@ -199,16 +344,60 @@ export default function AdminBrokenLinksPage() {
         ) : tab === "broken" ? (
           grouped.length === 0 ? (
             <div className="text-center py-16 text-zinc-500">No 404s logged yet. Nice.</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-16 text-zinc-500">
+              No rows match this filter.
+              {hideBots && hiddenCount > 0 && (
+                <button
+                  onClick={() => setHideBots(false)}
+                  className="block mx-auto mt-2 text-xs text-brand-blue hover:underline"
+                >
+                  Show {hiddenCount} bot-only row{hiddenCount === 1 ? "" : "s"}
+                </button>
+              )}
+            </div>
           ) : (
             <div className="space-y-3">
-              {grouped.map((g) => {
+              <div className="flex items-center gap-2 text-xs text-zinc-500 px-2">
+                <input
+                  type="checkbox"
+                  checked={allFilteredSelected}
+                  onChange={toggleAllFiltered}
+                  className="rounded"
+                  aria-label="Select all visible rows"
+                />
+                <span>{allFilteredSelected ? "Deselect all visible" : "Select all visible"}</span>
+              </div>
+              {filtered.map((g) => {
                 const inputValue = redirectInputs[g.url] ?? "";
                 const isBusy = busy === g.url;
+                const isSelected = selected.has(g.url);
+                const isTesting = testing.has(g.url);
+                const result = testResults[g.url];
                 return (
-                  <div key={g.url} className="bg-white rounded-xl border border-zinc-100 p-5">
-                    <div className="flex items-start justify-between gap-4 mb-3 flex-wrap">
+                  <div
+                    key={g.url}
+                    className={`bg-white rounded-xl border p-5 ${
+                      isSelected ? "border-brand-blue" : "border-zinc-100"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3 mb-3 flex-wrap">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleOne(g.url)}
+                        className="mt-1 rounded"
+                        aria-label={`Select ${g.url}`}
+                      />
                       <div className="min-w-0 flex-1">
-                        <p className="font-mono text-sm text-zinc-900 break-all">{g.url}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-mono text-sm text-zinc-900 break-all">{g.url}</p>
+                          {g.isBotOnly && (
+                            <span className="shrink-0 px-2 py-0.5 bg-zinc-100 text-zinc-500 text-[10px] font-semibold uppercase tracking-wider rounded-full">
+                              bot only
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-zinc-500 mt-1">
                           {g.count.toLocaleString()} {g.count === 1 ? "hit" : "hits"} · last seen{" "}
                           {new Date(g.lastSeen).toLocaleString("en-US", {
@@ -250,6 +439,35 @@ export default function AdminBrokenLinksPage() {
                       </div>
                     )}
 
+                    {result && (
+                      <div
+                        className={`text-xs mb-3 px-3 py-2 rounded-lg border ${
+                          result.ok
+                            ? "bg-green-50 border-green-200 text-green-800"
+                            : "bg-amber-50 border-amber-200 text-amber-800"
+                        }`}
+                      >
+                        <span className="font-semibold">Live check: </span>
+                        {result.error ? (
+                          <span>request failed — {result.error}</span>
+                        ) : (
+                          <>
+                            HTTP {result.status}
+                            {result.redirected && result.finalUrl && (
+                              <>
+                                {" "}→ <span className="font-mono">{result.finalUrl}</span>
+                              </>
+                            )}
+                            {result.ok && (
+                              <span className="ml-2">
+                                · this URL now resolves — safe to clear from report.
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
+
                     <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-zinc-100">
                       <input
                         type="text"
@@ -266,6 +484,13 @@ export default function AdminBrokenLinksPage() {
                         className="px-3 py-1.5 text-xs font-medium bg-brand-blue hover:bg-brand-blue-dark text-white rounded-lg disabled:opacity-50"
                       >
                         {isBusy ? "Saving…" : "Add 301 redirect"}
+                      </button>
+                      <button
+                        onClick={() => testLink(g.url)}
+                        disabled={isTesting}
+                        className="px-3 py-1.5 text-xs font-medium border border-zinc-200 text-zinc-700 hover:bg-zinc-50 rounded-lg disabled:opacity-50"
+                      >
+                        {isTesting ? "Testing…" : "Test link"}
                       </button>
                       <button
                         onClick={() => clearLogForUrl(g.url)}

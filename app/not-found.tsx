@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { headers } from "next/headers";
 import { supabaseAdmin } from "@/app/lib/supabase";
+import { isBotUserAgent } from "@/app/lib/botDetection";
 
 export const metadata = {
   title: "Page Not Found",
@@ -17,22 +18,25 @@ export default async function NotFound() {
   // their noise doesn't crowd out real broken-link reports).
   const h = await headers();
   const path = h.get("x-pathname");
+  const userAgent = h.get("user-agent");
   // Don't log /admin or /api paths — admin paths intentionally 404 for
   // logged-out visitors during the AdminGate redirect dance, and API
-  // paths are noise.
+  // paths are noise. Skip bot user-agents so vuln scanners and previewer
+  // crawlers don't crowd out real broken-link reports.
   const shouldLog =
     supabaseAdmin &&
     path &&
     !path.startsWith("/admin") &&
     !path.startsWith("/api/") &&
-    !path.startsWith("/_next/");
+    !path.startsWith("/_next/") &&
+    !isBotUserAgent(userAgent);
   if (shouldLog) {
     // Fire and await — at ~10ms it's worth the simplicity over background
     // task plumbing, and this path is rare by definition (it's a 404).
     await supabaseAdmin.from("link_404_log").insert({
       url: path,
       referrer: h.get("referer") || null,
-      user_agent: h.get("user-agent") || null,
+      user_agent: userAgent || null,
     });
   }
 
