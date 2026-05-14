@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { getSupabase } from "@/app/lib/supabase-browser";
@@ -27,6 +27,8 @@ interface BlogListClientProps {
 }
 
 export default function BlogListClient({ initialPosts = [] }: BlogListClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const categoryFilter = searchParams.get("category");
   const tagFilter = searchParams.get("tag");
@@ -40,8 +42,25 @@ export default function BlogListClient({ initialPosts = [] }: BlogListClientProp
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(initialPosts.length === POSTS_PER_PAGE);
   const [categories, setCategories] = useState<string[]>([]);
+  const [authors, setAuthors] = useState<string[]>([]);
   const [activeCategory, setActiveCategory] = useState(categoryFilter || "");
   const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Reading the author filter directly from the URL each render keeps the
+  // sidebar select in sync with back/forward navigation. The category
+  // filter mirrors local state for the pill UI (legacy pattern); doing
+  // the same dance for authors isn't necessary because the dropdown
+  // reads/writes via the URL.
+  const setAuthorFilter = useCallback(
+    (next: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (next) params.set("author", next);
+      else params.delete("author");
+      const q = params.toString();
+      router.push(q ? `${pathname}?${q}` : pathname);
+    },
+    [pathname, router, searchParams]
+  );
 
   const loadPosts = useCallback(async (pageNum: number, category: string, search: string | null) => {
     setLoading(true);
@@ -79,19 +98,30 @@ export default function BlogListClient({ initialPosts = [] }: BlogListClientProp
   }, [tagFilter, authorFilter]);
 
   useEffect(() => {
-    const loadCategories = async () => {
-      const { data } = await supabase
-        .from("blog_posts")
-        .select("category")
-        .eq("is_published", true)
-        .not("category", "is", null);
-
-      if (data) {
-        const unique = [...new Set(data.map((d) => d.category).filter(Boolean))];
+    const loadFacets = async () => {
+      const [catRes, authorRes] = await Promise.all([
+        supabase
+          .from("blog_posts")
+          .select("category")
+          .eq("is_published", true)
+          .not("category", "is", null),
+        supabase
+          .from("blog_posts")
+          .select("author_name")
+          .eq("is_published", true)
+          .not("author_name", "is", null)
+          .limit(5000),
+      ]);
+      if (catRes.data) {
+        const unique = [...new Set(catRes.data.map((d) => d.category).filter(Boolean))];
         setCategories(unique.sort());
       }
+      if (authorRes.data) {
+        const unique = [...new Set(authorRes.data.map((d) => d.author_name).filter(Boolean))];
+        setAuthors(unique.sort((a, b) => a.localeCompare(b)));
+      }
     };
-    void loadCategories();
+    void loadFacets();
   }, []);
 
   useEffect(() => {
@@ -232,7 +262,14 @@ export default function BlogListClient({ initialPosts = [] }: BlogListClientProp
         )}
       </div>
 
-      <BlogSidebar categories={categories} activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
+      <BlogSidebar
+        categories={categories}
+        activeCategory={activeCategory}
+        onCategoryChange={setActiveCategory}
+        authors={authors}
+        activeAuthor={authorFilter || ""}
+        onAuthorChange={setAuthorFilter}
+      />
     </div>
   );
 }
