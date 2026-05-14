@@ -14,8 +14,40 @@ interface Profile {
   status: string;
 }
 
+interface FeedPreview {
+  id: string;
+  display_name: string;
+  content: string;
+  type: "post" | "journal";
+  image_url: string | null;
+  reactions_count: number | null;
+  replies_count: number | null;
+  created_at: string;
+}
+
+// "Just now / Xm / Xh / Xd ago" — short enough to fit on the welcome line
+// without dominating it. Anything older than 30 days falls back to the
+// absolute date because relative time stops being readable after that.
+function relativeTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const then = new Date(iso).getTime();
+  const diff = Date.now() - then;
+  if (diff < 60_000) return "just now";
+  const m = Math.floor(diff / 60_000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [lastSignIn, setLastSignIn] = useState<string | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [feedPreview, setFeedPreview] = useState<FeedPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -26,14 +58,30 @@ export default function DashboardPage() {
         router.push("/login");
         return;
       }
+      setUserId(user.id);
+      setLastSignIn(user.last_sign_in_at || null);
 
-      const { data } = await supabase
-        .from("user_profiles")
-        .select("display_name, bio, avatar_url, role, status")
-        .eq("id", user.id)
-        .single();
+      const [profileRes, unreadRes, feedRes] = await Promise.all([
+        supabase
+          .from("user_profiles")
+          .select("display_name, bio, avatar_url, role, status")
+          .eq("id", user.id)
+          .single(),
+        supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("is_read", false),
+        supabase
+          .from("activity_feed")
+          .select("id, display_name, content, type, image_url, reactions_count, replies_count, created_at")
+          .order("created_at", { ascending: false })
+          .limit(3),
+      ]);
 
-      if (data) setProfile(data);
+      if (profileRes.data) setProfile(profileRes.data);
+      setUnreadNotifications(unreadRes.count || 0);
+      setFeedPreview((feedRes.data || []) as FeedPreview[]);
       setLoading(false);
     };
     void checkAuth();
@@ -71,13 +119,36 @@ export default function DashboardPage() {
     );
   }
 
+  // "My Profile" routes to the public profile view by default; the public
+  // page is where editors land readers, and the page itself surfaces an
+  // Edit Profile button when the viewer is the owner.
+  const myProfileHref = userId ? `/member/${userId}` : "/dashboard/profile";
+
   const quickLinks = [
     { label: "My Journal", href: "/dashboard/journal", icon: "M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" },
     { label: "Community Feed", href: "/community", icon: "M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" },
-    { label: "My Profile", href: "/dashboard/profile", icon: "M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" },
-    { label: "Notifications", href: "/dashboard/notifications", icon: "M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" },
+    { label: "My Profile", href: myProfileHref, icon: "M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" },
+    {
+      label: "Notifications",
+      href: "/dashboard/notifications",
+      icon: "M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0",
+      badge: unreadNotifications,
+    },
     { label: "Help Center", href: "/help", icon: "M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" },
   ];
+
+  // Welcome sub-line. Two pieces joined with a center dot. Skip a piece
+  // when there's nothing to say (zero notifications or no recorded last
+  // sign-in) rather than printing "0 unread notifications".
+  const welcomeBits: string[] = [];
+  if (unreadNotifications > 0) {
+    welcomeBits.push(
+      `You have ${unreadNotifications} unread notification${unreadNotifications === 1 ? "" : "s"}`
+    );
+  }
+  if (lastSignIn) {
+    welcomeBits.push(`Last visited ${relativeTime(lastSignIn)}`);
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -99,14 +170,16 @@ export default function DashboardPage() {
           </svg>
         </Link>
       )}
-      <div className="flex items-center justify-between mb-10">
-        <div>
+      <div className="flex items-center justify-between mb-10 flex-wrap gap-3">
+        <div className="min-w-0">
           <h1 className="text-3xl font-bold text-zinc-900">
             Welcome back{profile?.display_name ? `, ${profile.display_name}` : ""}
           </h1>
-          <p className="mt-1 text-zinc-500 text-sm capitalize">
-            {profile?.role || "Member"}
-          </p>
+          {welcomeBits.length > 0 ? (
+            <p className="mt-1 text-sm text-zinc-500">{welcomeBits.join(" · ")}</p>
+          ) : (
+            <p className="mt-1 text-sm text-zinc-500 capitalize">{profile?.role || "Member"}</p>
+          )}
         </div>
         <button
           onClick={handleLogout}
@@ -145,7 +218,7 @@ export default function DashboardPage() {
           <Link
             key={link.label}
             href={link.href}
-            className="flex items-center gap-4 p-5 bg-white rounded-2xl border border-zinc-100 hover:shadow-md hover:border-zinc-200 transition-all"
+            className="relative flex items-center gap-4 p-5 bg-white rounded-2xl border border-zinc-100 hover:shadow-md hover:border-zinc-200 transition-all"
           >
             <div className="w-10 h-10 rounded-xl bg-brand-blue-light text-brand-blue flex items-center justify-center shrink-0">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -153,9 +226,64 @@ export default function DashboardPage() {
               </svg>
             </div>
             <span className="text-sm font-medium text-zinc-900">{link.label}</span>
+            {/* Unread badge sits on the tile so the count is visible
+                before tapping in. Capped at 99+ so a very stale account
+                doesn't blow the layout. */}
+            {"badge" in link && (link.badge ?? 0) > 0 && (
+              <span className="ml-auto px-2 py-0.5 bg-brand-red text-white text-xs font-bold rounded-full tabular-nums">
+                {link.badge! > 99 ? "99+" : link.badge}
+              </span>
+            )}
           </Link>
         ))}
       </div>
+
+      {/* Recent community feed preview — 2-3 most recent items below the
+          Community Feed tile so the dashboard hints at activity without
+          requiring a click-through. */}
+      {feedPreview.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-zinc-900 uppercase tracking-wider">
+              Recent in the feed
+            </h2>
+            <Link href="/community" className="text-xs text-brand-blue hover:underline">
+              See all &rarr;
+            </Link>
+          </div>
+          <div className="space-y-2">
+            {feedPreview.map((item) => (
+              <Link
+                key={item.id}
+                href="/community"
+                className="block p-4 bg-white rounded-xl border border-zinc-100 hover:border-zinc-200 transition-colors"
+              >
+                <div className="flex items-center gap-2 text-xs text-zinc-500 mb-1">
+                  <span className="font-medium text-zinc-700">{item.display_name}</span>
+                  <span>·</span>
+                  <span>{relativeTime(item.created_at)}</span>
+                  {item.type === "journal" && (
+                    <span className="ml-1 px-1.5 py-0.5 bg-zinc-100 text-zinc-600 rounded-full text-[10px] uppercase tracking-wider">
+                      Journal
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-zinc-700 line-clamp-2">{item.content}</p>
+                {((item.reactions_count ?? 0) > 0 || (item.replies_count ?? 0) > 0) && (
+                  <div className="mt-2 flex items-center gap-3 text-xs text-zinc-500">
+                    {(item.reactions_count ?? 0) > 0 && (
+                      <span>{item.reactions_count} reaction{item.reactions_count === 1 ? "" : "s"}</span>
+                    )}
+                    {(item.replies_count ?? 0) > 0 && (
+                      <span>{item.replies_count} {item.replies_count === 1 ? "comment" : "comments"}</span>
+                    )}
+                  </div>
+                )}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
