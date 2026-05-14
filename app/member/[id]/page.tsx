@@ -14,18 +14,24 @@ interface Props {
   searchParams: Promise<{ tab?: string }>;
 }
 
-const SELF_ID_TAG_LABELS: Record<string, { label: string; chipClass: string }> = {
+const SELF_ID_TAG_LABELS: Record<string, { label: string; chipClass: string; tooltip: string }> = {
   parent_guardian: {
     label: "Parent / Guardian",
     chipClass: "bg-purple-100 text-purple-700 border-purple-200",
+    tooltip:
+      "A caregiver to a child or family member. Members self-select this label during onboarding.",
   },
   neurodiverse: {
     label: "Neurodiverse",
     chipClass: "bg-brand-blue-light text-brand-blue border-brand-blue/20",
+    tooltip:
+      "Identifies as autistic and/or neurodivergent. Members self-select this label during onboarding.",
   },
   professional: {
     label: "Professional",
     chipClass: "bg-amber-100 text-amber-700 border-amber-200",
+    tooltip:
+      "A therapist, educator, lawyer, or other professional serving the community. Members self-select this label during onboarding.",
   },
 };
 
@@ -150,7 +156,14 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
                   const meta = SELF_ID_TAG_LABELS[t];
                   if (!meta) return null;
                   return (
-                    <span key={t} className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${meta.chipClass}`}>
+                    // The native `title` attribute powers both hover (desktop)
+                    // and tap-and-hold (mobile) helper text. Cursor-help so
+                    // sighted users see the hint affordance before mousing in.
+                    <span
+                      key={t}
+                      title={meta.tooltip}
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-medium border cursor-help ${meta.chipClass}`}
+                    >
                       {meta.label}
                     </span>
                   );
@@ -199,19 +212,46 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
                       <Link
                         key={p.slug}
                         href={`/blog/${p.slug}/`}
-                        className="block p-5 bg-white rounded-2xl border border-zinc-100 hover:border-zinc-200 hover:shadow-md transition-all"
+                        className="flex flex-col sm:flex-row gap-4 p-5 bg-white rounded-2xl border border-zinc-100 hover:border-zinc-200 hover:shadow-md transition-all"
                       >
-                        <h3 className="text-base font-semibold text-zinc-900 mb-2 line-clamp-2">{p.title}</h3>
-                        {p.excerpt && (
-                          <p className="text-sm text-zinc-600 line-clamp-2 leading-relaxed">{p.excerpt}</p>
-                        )}
-                        <p className="text-xs text-zinc-400 mt-3">
-                          {new Date(p.date).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
-                        </p>
+                        {/* Thumbnail: left on desktop, top on mobile, with
+                            a branded gradient placeholder when the post
+                            has no featured image so cards never read as
+                            "image is broken". */}
+                        <div className="relative w-full sm:w-48 aspect-[16/9] sm:aspect-square shrink-0 rounded-xl overflow-hidden bg-zinc-100">
+                          {p.image ? (
+                            <Image
+                              src={p.image}
+                              alt=""
+                              fill
+                              sizes="(max-width: 640px) 100vw, 192px"
+                              className="object-cover"
+                              unoptimized
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-brand-blue-light to-brand-orange-light">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src="/Logo.png"
+                                alt="Autisable"
+                                className="w-1/2 max-w-[80px] opacity-40"
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-base font-semibold text-zinc-900 mb-2 line-clamp-2">{p.title}</h3>
+                          {p.excerpt && (
+                            <p className="text-sm text-zinc-600 line-clamp-2 leading-relaxed">{p.excerpt}</p>
+                          )}
+                          <p className="text-xs text-zinc-400 mt-3">
+                            {new Date(p.date).toLocaleDateString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
                       </Link>
                     ))}
                   </div>

@@ -70,7 +70,7 @@ export default function AdminModerationReportsPage() {
     if (feedIds.length > 0) {
       const { data: feedRows } = await supabase
         .from("activity_feed")
-        .select("id, user_id, body")
+        .select("id, user_id, content")
         .in("id", feedIds);
       const userIds = [...new Set((feedRows || []).map((r) => r.user_id))];
       const profileMap = new Map<string, string>();
@@ -83,7 +83,7 @@ export default function AdminModerationReportsPage() {
       }
       for (const row of feedRows || []) {
         nextSnippets[row.id] = {
-          preview: (row.body || "").slice(0, 400),
+          preview: (row.content || "").slice(0, 400),
           authorName: profileMap.get(row.user_id) || null,
           authorId: row.user_id,
         };
