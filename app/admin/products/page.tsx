@@ -52,6 +52,13 @@ export default function AdminProductsPage() {
   const [importBusy, setImportBusy] = useState(false);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const importFileRef = useRef<HTMLInputElement>(null);
+  // Per-row text buffers for the comma-separated array inputs. Without these
+  // the inputs were splitting on every keystroke, snapping the second value
+  // off as soon as the user typed the comma. The buffer holds the raw text
+  // while the user types; we only parse it into an array on blur.
+  const [arrayEditBuffer, setArrayEditBuffer] = useState<
+    Record<string, { category?: string; tags?: string }>
+  >({});
 
   const runImport = async (file: File) => {
     setImportBusy(true);
@@ -109,11 +116,27 @@ export default function AdminProductsPage() {
     if (!supabase) return;
     setSavingId(id);
     setItems((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
-    await supabase
+    // .select() forces a real response — without it, an RLS rejection
+    // returns {data:null, error:null} and the optimistic UI looks like
+    // success while the row never changed. Surface both error and
+    // empty-data cases so silent rejection isn't possible.
+    const { data, error } = await supabase
       .from("products")
       .update({ ...patch, updated_at: new Date().toISOString() })
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
     setSavingId(null);
+    if (error) {
+      alert(`Save failed: ${error.message}`);
+      void load();
+      return;
+    }
+    if (!data || data.length === 0) {
+      alert(
+        "Save didn't take — no rows updated. RLS may be blocking the write; check your admin role."
+      );
+      void load();
+    }
   };
 
   const remove = async (id: string) => {
@@ -404,61 +427,67 @@ export default function AdminProductsPage() {
                         className="px-2 py-1 text-xs border border-zinc-200 rounded"
                       />
                       <input
-                        value={p.category_filter?.join(", ") || ""}
+                        value={
+                          arrayEditBuffer[p.id]?.category ??
+                          (p.category_filter?.join(", ") || "")
+                        }
                         onChange={(e) =>
-                          setItems((prev) =>
-                            prev.map((x) =>
-                              x.id === p.id
-                                ? {
-                                    ...x,
-                                    category_filter: e.target.value
-                                      .split(",")
-                                      .map((s) => s.trim())
-                                      .filter(Boolean),
-                                  }
-                                : x
-                            )
-                          )
+                          setArrayEditBuffer((prev) => ({
+                            ...prev,
+                            [p.id]: { ...prev[p.id], category: e.target.value },
+                          }))
                         }
-                        onBlur={(e) =>
-                          update(p.id, {
-                            category_filter:
-                              e.target.value
-                                .split(",")
-                                .map((s) => s.trim())
-                                .filter(Boolean) || null,
-                          })
-                        }
-                        placeholder="Categories"
+                        onBlur={(e) => {
+                          const parsed = e.target.value
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                          void update(p.id, {
+                            category_filter: parsed.length > 0 ? parsed : null,
+                          });
+                          setArrayEditBuffer((prev) => {
+                            const next = { ...prev };
+                            if (next[p.id]) {
+                              const { category: _drop, ...rest } = next[p.id];
+                              next[p.id] = rest;
+                              if (Object.keys(rest).length === 0) delete next[p.id];
+                            }
+                            return next;
+                          });
+                        }}
+                        placeholder="Categories (comma-separated)"
                         className="px-2 py-1 text-xs border border-zinc-200 rounded"
                       />
                       <input
-                        value={p.tag_filter?.join(", ") || ""}
+                        value={
+                          arrayEditBuffer[p.id]?.tags ??
+                          (p.tag_filter?.join(", ") || "")
+                        }
                         onChange={(e) =>
-                          setItems((prev) =>
-                            prev.map((x) =>
-                              x.id === p.id
-                                ? {
-                                    ...x,
-                                    tag_filter: e.target.value
-                                      .split(",")
-                                      .map((s) => s.trim())
-                                      .filter(Boolean),
-                                  }
-                                : x
-                            )
-                          )
+                          setArrayEditBuffer((prev) => ({
+                            ...prev,
+                            [p.id]: { ...prev[p.id], tags: e.target.value },
+                          }))
                         }
-                        onBlur={(e) =>
-                          update(p.id, {
-                            tag_filter:
-                              e.target.value
-                                .split(",")
-                                .map((s) => s.trim())
-                                .filter(Boolean) || null,
-                          })
-                        }
-                        placeholder="Tags"
+                        onBlur={(e) => {
+                          const parsed = e.target.value
+                            .split(",")
+                            .map((s) => s.trim())
+                            .filter(Boolean);
+                          void update(p.id, {
+                            tag_filter: parsed.length > 0 ? parsed : null,
+                          });
+                          setArrayEditBuffer((prev) => {
+                            const next = { ...prev };
+                            if (next[p.id]) {
+                              const { tags: _drop, ...rest } = next[p.id];
+                              next[p.id] = rest;
+                              if (Object.keys(rest).length === 0) delete next[p.id];
+                            }
+                            return next;
+                          });
+                        }}
+                        placeholder="Tags (comma-separated)"
                         className="px-2 py-1 text-xs border border-zinc-200 rounded"
                       />
                     </div>
