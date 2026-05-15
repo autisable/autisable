@@ -12,6 +12,7 @@ function getClient(): {
   authMode?: "oauth" | "service_account";
   clientEmail?: string;
   projectId?: string;
+  oauthClient?: OAuth2Client;
 } {
   const propertyId = process.env.GA4_PROPERTY_ID;
   if (!propertyId) return { error: "GA4_PROPERTY_ID is not set" };
@@ -42,6 +43,7 @@ function getClient(): {
           : never,
       }),
       authMode: "oauth",
+      oauthClient: auth,
     };
   }
 
@@ -92,7 +94,35 @@ export async function GET(req: NextRequest) {
   if (authError) return authError;
 
   const propertyId = process.env.GA4_PROPERTY_ID;
-  const { client, error: clientError, authMode, clientEmail, projectId } = getClient();
+  const { client, error: clientError, authMode, clientEmail, projectId, oauthClient } = getClient();
+
+  // Force the OAuth refresh up front so a bad refresh token surfaces a
+  // clear "invalid_grant" / "invalid_client" message instead of the
+  // empty gRPC "undefined undefined" downstream.
+  if (oauthClient) {
+    try {
+      const { token } = await oauthClient.getAccessToken();
+      if (!token) {
+        return NextResponse.json(
+          {
+            error:
+              "OAuth refresh returned no access token. The refresh token may be invalid — re-run the Connect via Google OAuth flow.",
+            configured: true,
+          },
+          { status: 500 }
+        );
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return NextResponse.json(
+        {
+          error: `OAuth token refresh failed: ${msg}. Check GA4_OAUTH_CLIENT_ID and GA4_OAUTH_CLIENT_SECRET match the OAuth client you used, and that GA4_OAUTH_REFRESH_TOKEN was copied in full.`,
+          configured: true,
+        },
+        { status: 500 }
+      );
+    }
+  }
 
   if (!client) {
     // Distinguish "not configured at all" (show setup guide) from "configured
