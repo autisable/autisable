@@ -270,10 +270,35 @@ export async function GET(req: NextRequest) {
       metadata?: unknown;
       response?: { error?: { message?: string; status?: string } };
       cause?: { message?: string; code?: string };
+      errors?: Array<{ message?: string; reason?: string; domain?: string }>;
     };
 
     console.error("[ga4] API error (raw):", err);
     console.error("[ga4] API error keys:", Object.getOwnPropertyNames(e));
+    // Also stringify any structured fields so we don't lose them — gax wraps
+    // the real error in nested objects that don't survive `console.error`'s
+    // shallow rendering.
+    try {
+      console.error(
+        "[ga4] API error structured:",
+        JSON.stringify(
+          {
+            message: e?.message,
+            code: e?.code,
+            details: e?.details,
+            reason: e?.reason,
+            status: e?.status,
+            errors: e?.errors,
+            response: e?.response,
+            cause: e?.cause,
+          },
+          null,
+          2
+        )
+      );
+    } catch {
+      /* ignore */
+    }
 
     // Try the most informative fields first
     const responseError = e?.response?.error;
@@ -329,6 +354,24 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ error: msg, configured: true }, { status: 500 });
+    // Always attach a raw error dump for admin visibility — the friendly
+    // checklist is useful but hides the actual Google response when there
+    // is one. The dump lets us see fields the gax wrapper buried.
+    let rawDump: string | null = null;
+    try {
+      const dump: Record<string, unknown> = {};
+      for (const key of Object.getOwnPropertyNames(e)) {
+        if (key === "stack") continue;
+        dump[key] = (e as Record<string, unknown>)[key];
+      }
+      rawDump = JSON.stringify(dump).slice(0, 2000);
+    } catch {
+      /* ignore */
+    }
+
+    return NextResponse.json(
+      { error: msg, configured: true, raw: rawDump },
+      { status: 500 }
+    );
   }
 }

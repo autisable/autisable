@@ -27,6 +27,7 @@ export default function GA4AnalyticsPage() {
   const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorRaw, setErrorRaw] = useState<string | null>(null);
   const [notConfigured, setNotConfigured] = useState(false);
   const [oauthBusy, setOauthBusy] = useState(false);
 
@@ -66,6 +67,7 @@ export default function GA4AnalyticsPage() {
     }
     if (data.error && res.status >= 400) {
       setError(data.error);
+      setErrorRaw(typeof data.raw === "string" ? data.raw : null);
       return null;
     }
     return data;
@@ -159,6 +161,12 @@ export default function GA4AnalyticsPage() {
             >
               {oauthBusy ? "Starting…" : "Re-authorize via Google OAuth"}
             </button>
+            {errorRaw && (
+              <details className="mt-3">
+                <summary className="text-xs text-zinc-600 cursor-pointer">Show raw Google response (for debugging)</summary>
+                <pre className="mt-2 p-3 bg-white border border-zinc-200 rounded-lg text-[11px] text-zinc-700 whitespace-pre-wrap break-all max-h-64 overflow-auto">{errorRaw}</pre>
+              </details>
+            )}
           </div>
         )}
 
