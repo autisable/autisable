@@ -1,324 +1,46 @@
-"use client";
-
-import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { adminFetch } from "@/app/lib/adminFetch";
 
-interface Overview {
-  totalUsers: number;
-  sessions: number;
-  pageviews: number;
-  avgSessionDuration: number;
-  bounceRate: number;
-  engagementRate: number;
-}
-
-interface PageRow { page: string; title: string; views: number; users: number }
-interface SourceRow { source: string; medium: string; sessions: number }
-interface DeviceRow { device: string; sessions: number; users: number }
-interface CountryRow { country: string; sessions: number; users: number }
-interface TimelineRow { date: string; users: number; sessions: number; pageviews: number }
-
-const TABS = ["Overview", "Top Pages", "Sources", "Devices", "Countries", "Timeline"] as const;
-type Tab = typeof TABS[number];
+// Numeric GA4 property ID for autisable.com. Hardcoded because this
+// admin page deep-links into Joel's specific GA property; if the
+// project ever multi-tenants, lift this to NEXT_PUBLIC_GA4_PROPERTY_ID.
+const GA4_PROPERTY_ID = "308292169";
+const GA_DASHBOARD_URL = `https://analytics.google.com/analytics/web/#/p${GA4_PROPERTY_ID}/reports/intelligenthome`;
 
 export default function GA4AnalyticsPage() {
-  const [tab, setTab] = useState<Tab>("Overview");
-  const [days, setDays] = useState(30);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [errorRaw, setErrorRaw] = useState<string | null>(null);
-  const [notConfigured, setNotConfigured] = useState(false);
-  const [oauthBusy, setOauthBusy] = useState(false);
-
-  const startOAuth = async () => {
-    setOauthBusy(true);
-    try {
-      const res = await adminFetch("/api/admin/ga4/oauth/start", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok || !data.authUrl) {
-        alert(data.error || `Failed to start OAuth (HTTP ${res.status})`);
-        return;
-      }
-      window.location.href = data.authUrl;
-    } catch (err) {
-      alert(`Failed to start OAuth: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setOauthBusy(false);
-    }
-  };
-
-  const [overview, setOverview] = useState<Overview | null>(null);
-  const [pages, setPages] = useState<PageRow[]>([]);
-  const [sources, setSources] = useState<SourceRow[]>([]);
-  const [devices, setDevices] = useState<DeviceRow[]>([]);
-  const [countries, setCountries] = useState<CountryRow[]>([]);
-  const [timeline, setTimeline] = useState<TimelineRow[]>([]);
-
-  const fetchMetric = useCallback(async (metric: string) => {
-    const url = new URL("/api/admin/ga4", window.location.origin);
-    url.searchParams.set("metric", metric);
-    url.searchParams.set("days", String(days));
-    const res = await adminFetch(url.toString());
-    const data = await res.json();
-    if (data.configured === false) {
-      setNotConfigured(true);
-      return null;
-    }
-    if (data.error && res.status >= 400) {
-      setError(data.error);
-      setErrorRaw(typeof data.raw === "string" ? data.raw : null);
-      return null;
-    }
-    return data;
-  }, [days]);
-
-  useEffect(() => {
-    setLoading(true);
-    setError(null);
-    setNotConfigured(false);
-    (async () => {
-      try {
-        if (tab === "Overview") {
-          const data = await fetchMetric("overview");
-          if (data) setOverview(data);
-        } else if (tab === "Top Pages") {
-          const data = await fetchMetric("topPages");
-          if (data?.rows) setPages(data.rows);
-        } else if (tab === "Sources") {
-          const data = await fetchMetric("sources");
-          if (data?.rows) setSources(data.rows);
-        } else if (tab === "Devices") {
-          const data = await fetchMetric("devices");
-          if (data?.rows) setDevices(data.rows);
-        } else if (tab === "Countries") {
-          const data = await fetchMetric("countries");
-          if (data?.rows) setCountries(data.rows);
-        } else if (tab === "Timeline") {
-          const data = await fetchMetric("timeline");
-          if (data?.rows) setTimeline(data.rows);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load");
-      }
-      setLoading(false);
-    })();
-  }, [tab, days, fetchMetric]);
-
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="bg-white border-b border-zinc-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin" className="text-sm text-brand-blue hover:underline">&larr; Admin</Link>
-            <h1 className="text-xl font-bold text-zinc-900">Google Analytics</h1>
-            <span className="px-2 py-0.5 text-[10px] tracking-wide uppercase bg-zinc-100 text-zinc-500 rounded font-medium">GA4</span>
-          </div>
-          <select
-            value={days}
-            onChange={(e) => setDays(parseInt(e.target.value, 10))}
-            className="px-3 py-1.5 border border-zinc-200 rounded-lg text-sm"
-          >
-            <option value={1}>Last 24 hours</option>
-            <option value={7}>Last 7 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
-          </select>
+        <div className="max-w-6xl mx-auto flex items-center gap-4">
+          <Link href="/admin" className="text-sm text-brand-blue hover:underline">&larr; Admin</Link>
+          <h1 className="text-xl font-bold text-zinc-900">Google Analytics</h1>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-        {notConfigured && (
-          <div className="bg-brand-orange-light border border-brand-orange/30 rounded-2xl p-5 mb-6">
-            <h3 className="font-semibold text-brand-orange mb-2">GA4 not configured</h3>
-            <p className="text-sm text-zinc-700 mb-3">Two env vars in Vercel, then click the button:</p>
-            <ul className="text-sm text-zinc-700 space-y-1 list-disc pl-6 mb-3">
-              <li><code className="text-xs bg-white px-1 py-0.5 rounded">GA4_PROPERTY_ID</code> — numeric Property ID</li>
-              <li><code className="text-xs bg-white px-1 py-0.5 rounded">GA4_OAUTH_CLIENT_ID</code> and <code className="text-xs bg-white px-1 py-0.5 rounded">GA4_OAUTH_CLIENT_SECRET</code> — from a Web OAuth client in GCP Console → Credentials, with <code className="text-xs bg-white px-1 py-0.5 rounded">/api/admin/ga4/oauth/callback</code> as an authorized redirect URI.</li>
-            </ul>
-            <button
-              type="button"
-              onClick={startOAuth}
-              disabled={oauthBusy}
-              className="inline-flex items-center px-4 py-2 bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-medium rounded-lg disabled:opacity-50"
-            >
-              {oauthBusy ? "Starting…" : "Connect via Google OAuth"}
-            </button>
-            <p className="text-xs text-zinc-500 mt-3">
-              Once you authorize, copy the displayed refresh token into <code className="text-xs bg-white px-1 py-0.5 rounded">GA4_OAUTH_REFRESH_TOKEN</code> in Vercel and redeploy. Bypasses the GA4 UI&apos;s service-account rejection.
-            </p>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12">
+        <div className="bg-white rounded-2xl border border-zinc-100 p-8 text-center">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-brand-blue-light text-brand-blue flex items-center justify-center">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941" />
+            </svg>
           </div>
-        )}
-
-        {error && !notConfigured && (
-          <div className="bg-brand-red-light border border-brand-red/30 rounded-2xl p-5 mb-6">
-            <p className="text-sm text-brand-red mb-3">{error}</p>
-            <button
-              type="button"
-              onClick={startOAuth}
-              disabled={oauthBusy}
-              className="inline-flex items-center px-3 py-1.5 bg-white border border-zinc-200 text-zinc-700 text-xs font-medium rounded-lg hover:bg-zinc-50 disabled:opacity-50"
-            >
-              {oauthBusy ? "Starting…" : "Re-authorize via Google OAuth"}
-            </button>
-            {errorRaw && (
-              <details className="mt-3">
-                <summary className="text-xs text-zinc-600 cursor-pointer">Show raw Google response (for debugging)</summary>
-                <pre className="mt-2 p-3 bg-white border border-zinc-200 rounded-lg text-[11px] text-zinc-700 whitespace-pre-wrap break-all max-h-64 overflow-auto">{errorRaw}</pre>
-              </details>
-            )}
-          </div>
-        )}
-
-        {!notConfigured && (
-          <>
-            <div className="flex flex-wrap gap-2 mb-6">
-              {TABS.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTab(t)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    tab === t ? "bg-brand-blue text-white" : "bg-white text-zinc-600 border border-zinc-200"
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-
-            {loading && <div className="text-zinc-400 text-sm mb-4">Loading…</div>}
-
-            {tab === "Overview" && overview && (
-              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  { label: "Total Users", value: overview.totalUsers.toLocaleString() },
-                  { label: "Sessions", value: overview.sessions.toLocaleString() },
-                  { label: "Pageviews", value: overview.pageviews.toLocaleString() },
-                  { label: "Avg Session", value: `${Math.round(overview.avgSessionDuration)}s` },
-                  { label: "Bounce Rate", value: `${(overview.bounceRate * 100).toFixed(1)}%` },
-                  { label: "Engagement Rate", value: `${(overview.engagementRate * 100).toFixed(1)}%` },
-                ].map((s) => (
-                  <div key={s.label} className="bg-white p-5 rounded-2xl border border-zinc-100">
-                    <p className="text-sm text-zinc-500">{s.label}</p>
-                    <p className="text-2xl font-bold text-zinc-900 mt-1">{s.value}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {tab === "Top Pages" && (
-              <DataTable
-                rows={pages}
-                cols={[
-                  { header: "Page", get: (r) => <span className="text-zinc-900 truncate block max-w-md">{r.page}</span> },
-                  { header: "Title", get: (r) => <span className="text-zinc-500 text-xs truncate block max-w-md">{r.title}</span> },
-                  { header: "Views", get: (r) => r.views.toLocaleString(), align: "right" },
-                  { header: "Users", get: (r) => r.users.toLocaleString(), align: "right" },
-                ]}
-              />
-            )}
-
-            {tab === "Sources" && (
-              <DataTable
-                rows={sources}
-                cols={[
-                  { header: "Source", get: (r) => r.source },
-                  { header: "Medium", get: (r) => <span className="text-zinc-500">{r.medium}</span> },
-                  { header: "Sessions", get: (r) => r.sessions.toLocaleString(), align: "right" },
-                ]}
-              />
-            )}
-
-            {tab === "Devices" && (
-              <DataTable
-                rows={devices}
-                cols={[
-                  { header: "Device", get: (r) => <span className="capitalize">{r.device}</span> },
-                  { header: "Sessions", get: (r) => r.sessions.toLocaleString(), align: "right" },
-                  { header: "Users", get: (r) => r.users.toLocaleString(), align: "right" },
-                ]}
-              />
-            )}
-
-            {tab === "Countries" && (
-              <DataTable
-                rows={countries}
-                cols={[
-                  { header: "Country", get: (r) => r.country },
-                  { header: "Sessions", get: (r) => r.sessions.toLocaleString(), align: "right" },
-                  { header: "Users", get: (r) => r.users.toLocaleString(), align: "right" },
-                ]}
-              />
-            )}
-
-            {tab === "Timeline" && (
-              <div className="bg-white rounded-2xl border border-zinc-100 p-6">
-                <TimelineChart rows={timeline} />
-              </div>
-            )}
-          </>
-        )}
+          <h2 className="text-lg font-semibold text-zinc-900 mb-2">Analytics live in Google&apos;s dashboard</h2>
+          <p className="text-sm text-zinc-600 mb-6 max-w-md mx-auto">
+            Traffic, sources, devices, top pages, and timelines are all in Google Analytics
+            directly. Tap below to open the Autisable property.
+          </p>
+          <a
+            href={GA_DASHBOARD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-medium rounded-xl transition-colors"
+          >
+            Open Google Analytics
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+            </svg>
+          </a>
+        </div>
       </div>
     </div>
-  );
-}
-
-function DataTable<T>({ rows, cols }: {
-  rows: T[];
-  cols: { header: string; get: (r: T) => React.ReactNode; align?: "right" | "left" }[];
-}) {
-  if (rows.length === 0) {
-    return <div className="bg-white rounded-2xl border border-zinc-100 p-8 text-center text-zinc-400">No data yet</div>;
-  }
-  return (
-    <div className="bg-white rounded-2xl border border-zinc-100 overflow-hidden">
-      <table className="w-full">
-        <thead>
-          <tr className="border-b border-zinc-100">
-            {cols.map((c) => (
-              <th key={c.header} className={`text-${c.align || "left"} text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3`}>{c.header}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, i) => (
-            <tr key={i} className="border-b border-zinc-50">
-              {cols.map((c, j) => (
-                <td key={j} className={`px-5 py-3 text-sm text-${c.align || "left"} ${c.align === "right" ? "text-zinc-900 font-medium" : "text-zinc-700"}`}>
-                  {c.get(r)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function TimelineChart({ rows }: { rows: TimelineRow[] }) {
-  if (rows.length === 0) return <p className="text-sm text-zinc-400 text-center py-8">No data yet</p>;
-  const max = Math.max(...rows.map((r) => r.sessions), 1);
-  return (
-    <>
-      <h3 className="text-base font-semibold text-zinc-900 mb-4">Sessions over time</h3>
-      <div className="flex items-end gap-1 h-48">
-        {rows.map((r, i) => {
-          const h = (r.sessions / max) * 100;
-          return (
-            <div key={i} className="flex-1 group relative">
-              <div className="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:block bg-zinc-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                {r.date}: {r.sessions.toLocaleString()}
-              </div>
-              <div className="bg-brand-blue rounded-t hover:bg-brand-blue-dark transition-colors" style={{ height: `${h}%` }} />
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex justify-between mt-2 text-[10px] text-zinc-400">
-        <span>{rows[0]?.date}</span>
-        <span>{rows[rows.length - 1]?.date}</span>
-      </div>
-    </>
   );
 }
