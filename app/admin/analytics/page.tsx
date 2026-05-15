@@ -28,6 +28,24 @@ export default function GA4AnalyticsPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notConfigured, setNotConfigured] = useState(false);
+  const [oauthBusy, setOauthBusy] = useState(false);
+
+  const startOAuth = async () => {
+    setOauthBusy(true);
+    try {
+      const res = await adminFetch("/api/admin/ga4/oauth/start", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok || !data.authUrl) {
+        alert(data.error || `Failed to start OAuth (HTTP ${res.status})`);
+        return;
+      }
+      window.location.href = data.authUrl;
+    } catch (err) {
+      alert(`Failed to start OAuth: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setOauthBusy(false);
+    }
+  };
 
   const [overview, setOverview] = useState<Overview | null>(null);
   const [pages, setPages] = useState<PageRow[]>([]);
@@ -111,21 +129,36 @@ export default function GA4AnalyticsPage() {
         {notConfigured && (
           <div className="bg-brand-orange-light border border-brand-orange/30 rounded-2xl p-5 mb-6">
             <h3 className="font-semibold text-brand-orange mb-2">GA4 not configured</h3>
-            <p className="text-sm text-zinc-700 mb-3">Set these environment variables in Vercel:</p>
-            <ul className="text-sm text-zinc-700 space-y-1 list-disc pl-6">
-              <li><code className="text-xs bg-white px-1 py-0.5 rounded">GA4_PROPERTY_ID</code> — your numeric GA4 Property ID (e.g. 123456789)</li>
-              <li><code className="text-xs bg-white px-1 py-0.5 rounded">GA4_SERVICE_ACCOUNT_JSON</code> — full service account JSON key as one line</li>
+            <p className="text-sm text-zinc-700 mb-3">Two env vars in Vercel, then click the button:</p>
+            <ul className="text-sm text-zinc-700 space-y-1 list-disc pl-6 mb-3">
+              <li><code className="text-xs bg-white px-1 py-0.5 rounded">GA4_PROPERTY_ID</code> — numeric Property ID</li>
+              <li><code className="text-xs bg-white px-1 py-0.5 rounded">GA4_OAUTH_CLIENT_ID</code> and <code className="text-xs bg-white px-1 py-0.5 rounded">GA4_OAUTH_CLIENT_SECRET</code> — from a Web OAuth client in GCP Console → Credentials, with <code className="text-xs bg-white px-1 py-0.5 rounded">/api/admin/ga4/oauth/callback</code> as an authorized redirect URI.</li>
             </ul>
+            <button
+              type="button"
+              onClick={startOAuth}
+              disabled={oauthBusy}
+              className="inline-flex items-center px-4 py-2 bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-medium rounded-lg disabled:opacity-50"
+            >
+              {oauthBusy ? "Starting…" : "Connect via Google OAuth"}
+            </button>
             <p className="text-xs text-zinc-500 mt-3">
-              Create the service account in Google Cloud Console, download the JSON key, then add the service
-              account email as a Viewer in GA4 Admin → Property Access Management.
+              Once you authorize, copy the displayed refresh token into <code className="text-xs bg-white px-1 py-0.5 rounded">GA4_OAUTH_REFRESH_TOKEN</code> in Vercel and redeploy. Bypasses the GA4 UI&apos;s service-account rejection.
             </p>
           </div>
         )}
 
         {error && !notConfigured && (
           <div className="bg-brand-red-light border border-brand-red/30 rounded-2xl p-5 mb-6">
-            <p className="text-sm text-brand-red">{error}</p>
+            <p className="text-sm text-brand-red mb-3">{error}</p>
+            <button
+              type="button"
+              onClick={startOAuth}
+              disabled={oauthBusy}
+              className="inline-flex items-center px-3 py-1.5 bg-white border border-zinc-200 text-zinc-700 text-xs font-medium rounded-lg hover:bg-zinc-50 disabled:opacity-50"
+            >
+              {oauthBusy ? "Starting…" : "Re-authorize via Google OAuth"}
+            </button>
           </div>
         )}
 

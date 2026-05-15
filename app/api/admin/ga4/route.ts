@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BetaAnalyticsDataClient } from "@google-analytics/data";
+import { OAuth2Client } from "google-auth-library";
 import { requireAdmin } from "@/app/lib/adminAuth";
 
 export const runtime = "nodejs";
@@ -8,14 +9,49 @@ export const dynamic = "force-dynamic";
 function getClient(): {
   client?: BetaAnalyticsDataClient;
   error?: string;
+  authMode?: "oauth" | "service_account";
   clientEmail?: string;
   projectId?: string;
 } {
   const propertyId = process.env.GA4_PROPERTY_ID;
-  const credsRaw = process.env.GA4_SERVICE_ACCOUNT_JSON;
-
   if (!propertyId) return { error: "GA4_PROPERTY_ID is not set" };
-  if (!credsRaw) return { error: "GA4_SERVICE_ACCOUNT_JSON is not set" };
+
+  // OAuth takes priority over service-account credentials. Service
+  // accounts are still supported as a fallback for any setup where
+  // GA4 actually accepts the SA email — but on gmail-owned GA4
+  // accounts the UI rejects SAs, hence the OAuth path.
+  const oauthClientId = process.env.GA4_OAUTH_CLIENT_ID;
+  const oauthClientSecret = process.env.GA4_OAUTH_CLIENT_SECRET;
+  const oauthRefreshToken = process.env.GA4_OAUTH_REFRESH_TOKEN;
+
+  if (oauthClientId && oauthClientSecret && oauthRefreshToken) {
+    const auth = new OAuth2Client({
+      clientId: oauthClientId,
+      clientSecret: oauthClientSecret,
+    });
+    auth.setCredentials({ refresh_token: oauthRefreshToken });
+    return {
+      // The google-gax types want a generic AuthClient; OAuth2Client
+      // satisfies the runtime contract but the type isn't quite
+      // assignable, so we widen via unknown for the cast.
+      client: new BetaAnalyticsDataClient({
+        authClient: auth as unknown as ConstructorParameters<typeof BetaAnalyticsDataClient>[0] extends {
+          authClient?: infer T;
+        }
+          ? T
+          : never,
+      }),
+      authMode: "oauth",
+    };
+  }
+
+  const credsRaw = process.env.GA4_SERVICE_ACCOUNT_JSON;
+  if (!credsRaw) {
+    return {
+      error:
+        "No GA4 credentials configured. Set GA4_OAUTH_REFRESH_TOKEN (recommended) or GA4_SERVICE_ACCOUNT_JSON.",
+    };
+  }
 
   let credentials: { client_email?: string; private_key?: string; project_id?: string };
   try {
@@ -41,6 +77,7 @@ function getClient(): {
     client: new BetaAnalyticsDataClient({
       credentials: { client_email: credentials.client_email, private_key: privateKey },
     }),
+    authMode: "service_account",
     clientEmail: credentials.client_email,
     projectId: credentials.project_id,
   };
@@ -55,12 +92,12 @@ export async function GET(req: NextRequest) {
   if (authError) return authError;
 
   const propertyId = process.env.GA4_PROPERTY_ID;
-  const { client, error: clientError, clientEmail, projectId } = getClient();
+  const { client, error: clientError, authMode, clientEmail, projectId } = getClient();
 
   if (!client) {
     // Distinguish "not configured at all" (show setup guide) from "configured
     // but with bad value" (show what's wrong so they can fix it).
-    const isMissing = clientError?.includes("is not set");
+    const isMissing = clientError?.includes("not set") || clientError?.includes("No GA4 credentials");
     return NextResponse.json({
       error: clientError || "GA4 not configured.",
       configured: !isMissing,
@@ -271,15 +308,25 @@ export async function GET(req: NextRequest) {
     // Object.keys returns its internal slots, so emptiness checks misfire).
     // Surface the three common causes with the info needed to verify each.
     if (typeof e?.message === "string" && e.message.includes("undefined undefined")) {
-      const enableUrl = projectId
-        ? `https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com?project=${projectId}`
-        : "https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com";
-      msg = [
-        `GA4 API call failed with no status (typical of a misconfiguration). Check, in order:`,
-        `1. Google Analytics Data API enabled in GCP project${projectId ? ` "${projectId}"` : ""}: ${enableUrl}`,
-        `2. Service account ${clientEmail || "(unknown)"} added as Viewer in GA4 Admin → Property Access Management for property ${cleanPropertyId}`,
-        `3. GA4_PROPERTY_ID (${cleanPropertyId}) is the numeric property ID, not a Measurement ID (G-...) or Stream ID`,
-      ].join(" • ");
+      if (authMode === "oauth") {
+        msg = [
+          `GA4 API call failed with no status (typical of a misconfiguration). Check, in order:`,
+          `1. The Google account that authorized via OAuth still has Viewer access (or higher) on the GA4 property`,
+          `2. The Google Analytics Data API is enabled in the GCP project tied to the OAuth client: https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com`,
+          `3. GA4_PROPERTY_ID (${cleanPropertyId}) is the numeric property ID, not a Measurement ID (G-...) or Stream ID`,
+          `4. The refresh token hasn't been revoked at myaccount.google.com/connections — if it has, re-run the OAuth flow from /admin/analytics`,
+        ].join(" • ");
+      } else {
+        const enableUrl = projectId
+          ? `https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com?project=${projectId}`
+          : "https://console.cloud.google.com/apis/library/analyticsdata.googleapis.com";
+        msg = [
+          `GA4 API call failed with no status (typical of a misconfiguration). Check, in order:`,
+          `1. Google Analytics Data API enabled in GCP project${projectId ? ` "${projectId}"` : ""}: ${enableUrl}`,
+          `2. Service account ${clientEmail || "(unknown)"} added as Viewer in GA4 Admin → Property Access Management for property ${cleanPropertyId}`,
+          `3. GA4_PROPERTY_ID (${cleanPropertyId}) is the numeric property ID, not a Measurement ID (G-...) or Stream ID`,
+        ].join(" • ");
+      }
     }
 
     return NextResponse.json({ error: msg, configured: true }, { status: 500 });
