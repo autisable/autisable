@@ -154,14 +154,47 @@ export default function EditJournalPage() {
       .eq("id", userId)
       .single();
 
+    // Resolve (and if necessary create) the authors row that backs this
+    // member's byline. Linking via user_profile_id is preferred over
+    // display_name matching because members can rename themselves and
+    // the link survives. If no row exists yet for this member, create
+    // one — that way the very first submission produces a working
+    // byline without an editor having to add the author manually.
     let authorId: string | null = null;
     if (profile?.display_name) {
-      const { data: author } = await supabase
+      // 1. Prefer the row already linked to this user_profile.
+      const byLink = await supabase
         .from("authors")
         .select("id")
-        .eq("display_name", profile.display_name)
+        .eq("user_profile_id", userId)
         .maybeSingle();
-      if (author) authorId = author.id;
+      if (byLink.data) {
+        authorId = byLink.data.id;
+      } else {
+        // 2. Otherwise look for a name match and link it to this profile.
+        const byName = await supabase
+          .from("authors")
+          .select("id, user_profile_id")
+          .eq("display_name", profile.display_name)
+          .maybeSingle();
+        if (byName.data) {
+          authorId = byName.data.id;
+          if (!byName.data.user_profile_id) {
+            await supabase
+              .from("authors")
+              .update({ user_profile_id: userId })
+              .eq("id", byName.data.id);
+          }
+        } else {
+          // 3. No author row at all — create one linked to this profile.
+          const created = await supabase
+            .from("authors")
+            .insert({ display_name: profile.display_name, user_profile_id: userId })
+            .select("id")
+            .single();
+          if (created.data) authorId = created.data.id;
+        }
+      }
     }
 
     const baseSlug = (title.trim() || "Untitled")

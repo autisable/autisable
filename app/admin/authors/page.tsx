@@ -16,6 +16,8 @@ interface Author {
   instagram: string | null;
   linkedin: string | null;
   youtube: string | null;
+  user_profile_id: string | null;
+  avatar_url: string | null;
 }
 
 export default function AdminAuthorsPage() {
@@ -30,11 +32,13 @@ export default function AdminAuthorsPage() {
     if (!supabase) return;
     supabase
       .from("authors")
-      .select("id, display_name, bio, website, twitter, facebook, instagram, linkedin, youtube")
+      .select(
+        "id, display_name, bio, website, twitter, facebook, instagram, linkedin, youtube, user_profile_id, avatar_url"
+      )
       .order("display_name")
       .limit(1000)
       .then(({ data }) => {
-        if (data) setAuthors(data);
+        if (data) setAuthors(data as Author[]);
         setLoading(false);
       });
   }, []);
@@ -47,7 +51,10 @@ export default function AdminAuthorsPage() {
   const handleSave = async () => {
     if (!editData || !supabase) return;
     setSaving(true);
-    const { error } = await supabase
+    // .select() forces a real response — without it, an RLS rejection
+    // returns {data:null, error:null} and the optimistic UI lies
+    // about success. Apply the same fix we used on /admin/products.
+    const { data, error } = await supabase
       .from("authors")
       .update({
         display_name: editData.display_name,
@@ -59,13 +66,24 @@ export default function AdminAuthorsPage() {
         linkedin: editData.linkedin,
         youtube: editData.youtube,
       })
-      .eq("id", editData.id);
+      .eq("id", editData.id)
+      .select("id");
 
-    if (!error) {
-      setAuthors((prev) => prev.map((a) => (a.id === editData.id ? editData : a)));
-      setEditing(null);
-      setEditData(null);
+    if (error) {
+      alert(`Save failed: ${error.message}`);
+      setSaving(false);
+      return;
     }
+    if (!data || data.length === 0) {
+      alert(
+        "Save didn't take — no rows updated. RLS may be blocking the write. Apply docs/authors-user-profile-link.sql to add the editor/admin UPDATE policy."
+      );
+      setSaving(false);
+      return;
+    }
+    setAuthors((prev) => prev.map((a) => (a.id === editData.id ? editData : a)));
+    setEditing(null);
+    setEditData(null);
     setSaving(false);
   };
 
@@ -102,6 +120,17 @@ export default function AdminAuthorsPage() {
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
+              {editData.user_profile_id && (
+                <div className="mb-4 p-3 bg-brand-blue-light/40 border border-brand-blue/20 rounded-lg text-xs text-zinc-700">
+                  <p className="font-medium text-zinc-900">Linked to a member profile</p>
+                  <p className="mt-1">
+                    Bylines on blog posts pull bio, avatar, and social links from the member&apos;s
+                    profile when those fields are set there — values entered below act as fallbacks
+                    only. Tell the member to edit their profile at <code className="text-[11px]">/dashboard/profile</code>
+                    to update what readers see.
+                  </p>
+                </div>
+              )}
               <div className="space-y-3">
                 {[
                   { key: "display_name", label: "Name" },
@@ -152,11 +181,26 @@ export default function AdminAuthorsPage() {
             {filtered.map((author) => (
               <div key={author.id} className="flex items-center justify-between p-4 bg-white rounded-xl border border-zinc-100 hover:border-zinc-200 transition-colors">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-full bg-brand-blue-light text-brand-blue flex items-center justify-center text-sm font-bold shrink-0">
-                    {author.display_name.charAt(0).toUpperCase()}
+                  <div className="w-9 h-9 rounded-full bg-brand-blue-light text-brand-blue flex items-center justify-center text-sm font-bold shrink-0 overflow-hidden">
+                    {author.avatar_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={author.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      author.display_name.charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-zinc-900 truncate">{author.display_name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-zinc-900 truncate">{author.display_name}</p>
+                      {author.user_profile_id && (
+                        <span
+                          title="This author is linked to a member profile. Bylines render live data from the member's /dashboard/profile."
+                          className="shrink-0 px-1.5 py-0.5 bg-brand-blue-light text-brand-blue text-[10px] font-semibold uppercase tracking-wider rounded-full cursor-help"
+                        >
+                          member-linked
+                        </span>
+                      )}
+                    </div>
                     <p className="text-xs text-zinc-400 truncate">{author.bio?.slice(0, 60) || "No bio"}</p>
                   </div>
                 </div>

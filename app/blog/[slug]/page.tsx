@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import BlogPostClient from "@/app/components/blog/BlogPostClient";
 import { pickAffiliate, pickAffiliates } from "@/app/lib/pickAffiliate";
 import { pickProducts } from "@/app/lib/pickProducts";
+import { resolveAuthor } from "@/app/lib/resolveAuthor";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -86,24 +87,14 @@ export default async function BlogPostPage({ params }: Props) {
 
   if (!post) notFound();
 
-  // Fetch author details — try by author_id first, fallback to author_name
-  let author = null;
-  if (post.author_id) {
-    const { data } = await supabaseAdmin
-      .from("authors")
-      .select("display_name, bio, website, twitter, facebook, instagram, linkedin, youtube, avatar_url")
-      .eq("id", post.author_id)
-      .single();
-    author = data;
-  }
-  if (!author && post.author_name) {
-    const { data } = await supabaseAdmin
-      .from("authors")
-      .select("display_name, bio, website, twitter, facebook, instagram, linkedin, youtube, avatar_url")
-      .eq("display_name", post.author_name)
-      .single();
-    author = data;
-  }
+  // Resolve byline. If the author row is linked to a user_profile
+  // (member-author), the live member profile takes precedence over the
+  // authors-table snapshot — so member edits flow through to the byline
+  // without a separate sync step.
+  const author = await resolveAuthor({
+    author_id: post.author_id,
+    author_name: post.author_name,
+  });
 
   const { data: related } = await supabaseAdmin
     .from("blog_posts")

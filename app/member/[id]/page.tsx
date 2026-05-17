@@ -75,16 +75,50 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
 
   if (!profile || profile.status !== "active") notFound();
 
-  // Posts authored by this member (current join is via author_name match — most
-  // reliable until we unify authors/user_profiles).
-  const [postsRes, followerCountRes, followingCountRes] = await Promise.all([
-    supabaseAdmin
-      .from("blog_posts")
-      .select("slug, title, excerpt, image, date")
-      .eq("is_published", true)
-      .eq("author_name", profile.display_name)
-      .order("date", { ascending: false })
-      .limit(20),
+  // Posts authored by this member. Two paths, since some posts predate
+  // the authors↔user_profiles link and only carry author_name:
+  //   1. authors.user_profile_id link → blog_posts.author_id
+  //   2. blog_posts.author_name match (the legacy join)
+  // Run both and dedupe by slug. Doing this as two queries avoids
+  // shoving display_name into a PostgREST `or()` filter, which breaks
+  // for names containing commas, parens, or quotes.
+  const linkedAuthorRes = await supabaseAdmin
+    .from("authors")
+    .select("id")
+    .eq("user_profile_id", id)
+    .maybeSingle();
+  const linkedAuthorId = linkedAuthorRes.data?.id || null;
+
+  const postSelect = "slug, title, excerpt, image, date";
+  const postsByLinkRes = linkedAuthorId
+    ? await supabaseAdmin
+        .from("blog_posts")
+        .select(postSelect)
+        .eq("is_published", true)
+        .eq("author_id", linkedAuthorId)
+        .order("date", { ascending: false })
+        .limit(20)
+    : { data: [] };
+  const postsByNameRes = await supabaseAdmin
+    .from("blog_posts")
+    .select(postSelect)
+    .eq("is_published", true)
+    .eq("author_name", profile.display_name)
+    .order("date", { ascending: false })
+    .limit(20);
+
+  const seenSlugs = new Set<string>();
+  const mergedPosts = [...(postsByLinkRes.data || []), ...(postsByNameRes.data || [])]
+    .filter((p) => {
+      if (seenSlugs.has(p.slug)) return false;
+      seenSlugs.add(p.slug);
+      return true;
+    })
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, 20);
+  const postsRes = { data: mergedPosts };
+
+  const [followerCountRes, followingCountRes] = await Promise.all([
     supabaseAdmin
       .from("follows")
       .select("id", { count: "exact", head: true })
