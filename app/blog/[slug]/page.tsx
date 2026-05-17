@@ -31,13 +31,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // syndicated posts it points to the original source so we don't compete
   // with the original for duplicate-content scoring.
   const canonical = post.canonical_url || autisableUrl;
-  // OG image: ALWAYS image-only via /api/og/featured/[slug]/. LinkedIn,
-  // Facebook, and X all add their own title/URL/excerpt chrome around
-  // the image — baking a title overlay into the OG image was making the
-  // title render twice in every preview. The route handles the "no
-  // featured image" case internally by emitting a brand swatch, so this
-  // single URL works for every published post.
-  const ogImage = `https://autisable.com/api/og/featured/${slug}/`;
+  // OG image: point directly at the post's featured image when set.
+  // We used to always route through /api/og/featured/[slug]/ to
+  // guarantee a 1200x630 PNG, but next/og's Satori renderer can't
+  // decode WebP — so every post with a .webp featured image was
+  // rendering as a solid brand-blue square (the parent div's fill
+  // color, visible when the <img> silently fails). Going direct also
+  // matches Joel's mental model ("og image is the featured image")
+  // and trims one Vercel function invocation per scrape.
+  //
+  // Fall back to the route for the no-image case so those posts still
+  // get a brand-swatch card instead of a missing og:image tag.
+  const ogImage =
+    post.og_image ||
+    post.image ||
+    `https://autisable.com/api/og/featured/${slug}/`;
 
   // Build keywords list: focus first, then additional, then tags as fallback
   const allKeywords = [
@@ -123,9 +131,13 @@ export default async function BlogPostPage({ params }: Props) {
     "@type": "Article",
     headline: post.title,
     description: post.meta_description || post.excerpt,
-    // Same routing as the OG meta tags above — JSON-LD image goes through
-    // the resize wrapper too so structured data and social preview agree.
-    image: `https://autisable.com/api/og/featured/${slug}/`,
+    // Mirror the og:image resolution so structured data and social
+    // preview stay in sync (raw featured image when present, fallback
+    // to the brand-swatch route otherwise).
+    image:
+      post.og_image ||
+      post.image ||
+      `https://autisable.com/api/og/featured/${slug}/`,
     datePublished: post.date,
     dateModified: post.date_modified || post.date,
     mainEntityOfPage: { "@type": "WebPage", "@id": pageUrl },
