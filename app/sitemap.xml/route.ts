@@ -30,6 +30,9 @@ export async function GET() {
       .from("blog_posts")
       .select("slug, date, date_modified")
       .eq("is_published", true)
+      // Don't surface scheduled posts to search engines until they're
+      // live — sitemap is supposed to advertise indexable URLs only.
+      .lte("date", new Date().toISOString())
       .order("date", { ascending: false })
       .range(from, from + PAGE_SIZE - 1);
 

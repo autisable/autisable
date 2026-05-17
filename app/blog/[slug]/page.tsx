@@ -17,6 +17,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .select("title, excerpt, image, meta_title, meta_description, og_image, canonical_url, focus_keyword, keywords, tags")
     .eq("slug", slug)
     .eq("is_published", true)
+    // Scheduled (future-dated) posts: keep them out of metadata too so
+    // the post 404s consistently before the publish moment.
+    .lte("date", new Date().toISOString())
     .single();
 
   if (!post) return { title: "Post Not Found" };
@@ -83,6 +86,8 @@ export default async function BlogPostPage({ params }: Props) {
     .select("*")
     .eq("slug", slug)
     .eq("is_published", true)
+    // Scheduled posts 404 until their date arrives.
+    .lte("date", new Date().toISOString())
     .single();
 
   if (!post) notFound();
@@ -100,6 +105,7 @@ export default async function BlogPostPage({ params }: Props) {
     .from("blog_posts")
     .select("id, slug, title, image, category, date")
     .eq("is_published", true)
+    .lte("date", new Date().toISOString())
     .eq("category", post.category)
     .neq("id", post.id)
     .order("date", { ascending: false })

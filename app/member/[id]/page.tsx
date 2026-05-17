@@ -90,11 +90,13 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
   const linkedAuthorId = linkedAuthorRes.data?.id || null;
 
   const postSelect = "slug, title, excerpt, image, date";
+  const nowIso = new Date().toISOString();
   const postsByLinkRes = linkedAuthorId
     ? await supabaseAdmin
         .from("blog_posts")
         .select(postSelect)
         .eq("is_published", true)
+        .lte("date", nowIso)
         .eq("author_id", linkedAuthorId)
         .order("date", { ascending: false })
         .limit(20)
@@ -103,6 +105,7 @@ export default async function MemberProfilePage({ params, searchParams }: Props)
     .from("blog_posts")
     .select(postSelect)
     .eq("is_published", true)
+    .lte("date", nowIso)
     .eq("author_name", profile.display_name)
     .order("date", { ascending: false })
     .limit(20);

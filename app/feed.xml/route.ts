@@ -7,6 +7,10 @@ export async function GET() {
     .from("blog_posts")
     .select("slug, title, excerpt, date, category, author_name")
     .eq("is_published", true)
+    // Future-dated posts are scheduled — keep them out of the RSS
+    // feed until they go live, otherwise Mailchimp / LinkedIn auto-
+    // posters would surface them early.
+    .lte("date", new Date().toISOString())
     .order("date", { ascending: false })
     .limit(50);
 

@@ -11,6 +11,7 @@ export default async function FeaturedStory() {
     .select("id, slug, title, excerpt, image, category, date, read_time, author_name")
     .eq("slug", FEATURED_SLUG)
     .eq("is_published", true)
+    .lte("date", new Date().toISOString())
     .single();
 
   if (!post) return null;

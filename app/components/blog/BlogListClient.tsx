@@ -68,6 +68,10 @@ export default function BlogListClient({ initialPosts = [] }: BlogListClientProp
       .from("blog_posts")
       .select("id, slug, title, excerpt, image, category, date, read_time, author_name")
       .eq("is_published", true)
+      // Hide future-dated (scheduled) posts. Browser-side date is fine
+      // here — close enough; this is paginated browsing, not access
+      // control.
+      .lte("date", new Date().toISOString())
       .order("date", { ascending: false })
       .range(pageNum * POSTS_PER_PAGE, (pageNum + 1) * POSTS_PER_PAGE - 1);
 
@@ -99,16 +103,19 @@ export default function BlogListClient({ initialPosts = [] }: BlogListClientProp
 
   useEffect(() => {
     const loadFacets = async () => {
+      const nowIso = new Date().toISOString();
       const [catRes, authorRes] = await Promise.all([
         supabase
           .from("blog_posts")
           .select("category")
           .eq("is_published", true)
+          .lte("date", nowIso)
           .not("category", "is", null),
         supabase
           .from("blog_posts")
           .select("author_name")
           .eq("is_published", true)
+          .lte("date", nowIso)
           .not("author_name", "is", null)
           .limit(5000),
       ]);

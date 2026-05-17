@@ -45,6 +45,7 @@ export default async function NotFound() {
         .from("blog_posts")
         .select("slug, title, image, category, date")
         .eq("is_published", true)
+        .lte("date", new Date().toISOString())
         .order("date", { ascending: false })
         .limit(3)
     : { data: null };

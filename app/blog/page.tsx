@@ -14,10 +14,14 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function BlogPage() {
+  // Future-dated published posts are scheduled — hide them from the
+  // public list until their publish moment. No cron needed; the next
+  // ISR revalidation (60s) plus the date filter naturally surface them.
   const { data: posts } = await supabaseAdmin
     .from("blog_posts")
     .select("id, slug, title, excerpt, image, category, date, read_time, author_name")
     .eq("is_published", true)
+    .lte("date", new Date().toISOString())
     .order("date", { ascending: false })
     .limit(12);
 

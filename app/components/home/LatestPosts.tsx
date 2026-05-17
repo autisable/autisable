@@ -8,6 +8,7 @@ export default async function LatestPosts() {
     .from("blog_posts")
     .select("id, slug, title, excerpt, image, category, date, read_time, author_name")
     .eq("is_published", true)
+    .lte("date", new Date().toISOString())
     .order("date", { ascending: false })
     .limit(6);
 

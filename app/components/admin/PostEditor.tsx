@@ -485,12 +485,28 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
         <div className="w-full lg:w-80 shrink-0 space-y-6">
           {/* Publish Actions */}
           <div className="bg-white rounded-xl border border-zinc-200 p-5">
-            <h3 className="text-sm font-semibold text-zinc-900 mb-4">Publish</h3>
+            {(() => {
+              // A "published" post whose date is still in the future is
+              // a scheduled post — the public listings filter on
+              // date <= now(), so it stays hidden until that moment
+              // without any cron. Detect that case so the UI says
+              // "Scheduled" instead of "Published", and the action
+              // button says "Schedule" instead of "Publish".
+              const dateStr = (post.date as string) || "";
+              const isFutureDate = dateStr ? new Date(dateStr).getTime() > Date.now() : false;
+              const isScheduled = !!post.is_published && isFutureDate;
+              return (
+                <>
+            <h3 className="text-sm font-semibold text-zinc-900 mb-4">
+              {isScheduled ? "Scheduled" : "Publish"}
+            </h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-zinc-500">Status</span>
                 <span className={`font-medium ${
-                  post.is_published
+                  isScheduled
+                    ? "text-brand-blue"
+                    : post.is_published
                     ? "text-brand-green"
                     : post.draft_status === "trash"
                     ? "text-brand-red"
@@ -498,10 +514,12 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
                     ? "text-brand-orange"
                     : "text-zinc-500"
                 }`}>
-                  {post.is_published
+                  {isScheduled
+                    ? "Scheduled"
+                    : post.is_published
                     ? "Published"
                     : post.draft_status === "ready_for_scheduling"
-                    ? "Scheduled"
+                    ? "Ready to Schedule"
                     : post.draft_status === "pending_review"
                     ? "Pending Review"
                     : post.draft_status === "in_progress"
@@ -513,6 +531,21 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
                     : "Draft"}
                 </span>
               </div>
+              {isScheduled && (
+                <p className="text-xs text-brand-blue bg-brand-blue-light/50 border border-brand-blue/20 rounded-md px-3 py-2">
+                  Goes live on{" "}
+                  <span className="font-medium">
+                    {new Date(dateStr).toLocaleString("en-US", {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                  . Hidden from the public site until then.
+                </p>
+              )}
               {!post.is_published && (
                 <div>
                   <label className="block text-xs text-zinc-500 mb-1">Editorial Stage</label>
@@ -570,7 +603,15 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
                   disabled={saving}
                   className="flex-1 py-2.5 bg-brand-blue hover:bg-brand-blue-dark text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
                 >
-                  {saving ? "..." : post.is_published ? "Update" : "Publish"}
+                  {saving
+                    ? "..."
+                    : post.is_published
+                    ? isFutureDate
+                      ? "Update Schedule"
+                      : "Update"
+                    : isFutureDate
+                    ? "Schedule"
+                    : "Publish"}
                 </button>
               </div>
               {saved && (
@@ -579,11 +620,11 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
               {!isNew && (
                 <div className="pt-2 border-t border-zinc-100 flex justify-between">
                   <a
-                    href={post.is_published ? `/blog/${post.slug}/` : `/admin/posts/${post.id}/preview`}
+                    href={post.is_published && !isFutureDate ? `/blog/${post.slug}/` : `/admin/posts/${post.id}/preview`}
                     target="_blank"
                     className="text-xs text-brand-blue hover:underline"
                   >
-                    {post.is_published ? "View post" : "Preview post"} &rarr;
+                    {post.is_published && !isFutureDate ? "View post" : "Preview post"} &rarr;
                   </a>
                   <button
                     onClick={handleDelete}
@@ -594,6 +635,9 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
                 </div>
               )}
             </div>
+                </>
+              );
+            })()}
           </div>
 
           {/* Featured Image */}
