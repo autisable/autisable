@@ -129,27 +129,51 @@ export default function Header() {
     };
     void loadSocialLinks();
 
+    const applyUser = async (
+      u: { id: string; email?: string | null } | null | undefined
+    ) => {
+      if (!u) {
+        setUser(null);
+        setUnreadCount(0);
+        return;
+      }
+      setUser({ id: u.id, email: u.email ?? undefined });
+      // Fetch unread notification count for the bell badge. Cheap
+      // (head=true, no rows returned).
+      const { count } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", u.id)
+        .eq("is_read", false);
+      setUnreadCount(count || 0);
+    };
+
     const checkAuth = async () => {
       const { data: { user: u } } = await supabase.auth.getUser();
-      if (u) {
-        setUser({ id: u.id, email: u.email ?? undefined });
-        // Fetch unread notification count for the bell badge. Cheap (head=true,
-        // no rows returned).
-        const { count } = await supabase
-          .from("notifications")
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", u.id)
-          .eq("is_read", false);
-        setUnreadCount(count || 0);
-      }
+      void applyUser(u);
     };
 
     void loadNavLinks();
     void checkAuth();
 
+    // React to login/logout from anywhere in the app — without this
+    // the Dashboard button stayed visible after the dashboard's
+    // "Log out" until a hard refresh because the header never knew
+    // the session changed.
+    const { data: authSub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        void applyUser(null);
+      } else {
+        void applyUser(session?.user ?? null);
+      }
+    });
+
     const handleScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      authSub.subscription.unsubscribe();
+    };
   }, []);
 
   return (
