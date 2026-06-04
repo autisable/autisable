@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { supabaseAdmin } from "@/app/lib/supabase";
 
-const FEATURED_SLUG = "504-plan-vs-iep-which-one-does-your-child-need";
+const FEATURED_SLUG = "the-autism-dad-mindset-shift-from-fix-to-support-moq9ykc9";
 
 export default async function FeaturedStory() {
   if (!supabaseAdmin) return null;
