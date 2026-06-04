@@ -57,8 +57,13 @@ export default function RegisterPage() {
     }
 
     if (data.user) {
-      // Use API route to create profile with service role (bypasses RLS)
-      await fetch("/api/auth/create-profile", {
+      // Backup path: the on_auth_user_created Postgres trigger creates
+      // the user_profiles row inside the same transaction as the auth
+      // user insert, so this fetch is normally a no-op (ON CONFLICT
+      // DO NOTHING). Kept so non-trigger environments still work and
+      // so an honest error message reaches the user if the trigger
+      // hasn't been applied yet.
+      const profileRes = await fetch("/api/auth/create-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -68,6 +73,19 @@ export default function RegisterPage() {
           dateOfBirth: `${dob.year}-${dob.month.padStart(2, "0")}-${dob.day.padStart(2, "0")}`,
         }),
       });
+      if (!profileRes.ok) {
+        const body = await profileRes.json().catch(() => ({}));
+        // Duplicate key here means the trigger already created the
+        // profile — that's success from the user's point of view.
+        const msg = (body.error as string | undefined) || "";
+        if (!/duplicate|already exists|unique/i.test(msg)) {
+          setError(
+            `Account created but profile setup failed: ${msg || `HTTP ${profileRes.status}`}. Email an admin if this persists.`
+          );
+          setLoading(false);
+          return;
+        }
+      }
     }
 
     setStep("pending");
