@@ -33,11 +33,45 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+      const { data: signInData, error: err } = await supabase.auth.signInWithPassword({ email, password });
       if (err) {
         setError(err.message);
         setLoading(false);
         return;
+      }
+
+      // Gate access at the door rather than letting pending/suspended/
+      // removed members reach the dashboard. Read user_profiles.status
+      // and, if it isn't 'active', sign them back out and show the
+      // matching message. The signOut also tears down the session
+      // cookie so a stale Header doesn't keep showing the Dashboard
+      // button until the next refresh.
+      const userId = signInData.user?.id;
+      if (userId) {
+        const { data: profile } = await supabase
+          .from("user_profiles")
+          .select("status")
+          .eq("id", userId)
+          .single();
+        const status = profile?.status as string | undefined;
+        if (status && status !== "active") {
+          await supabase.auth.signOut();
+          if (status === "pending_approval") {
+            setError(
+              "Your account is still pending review. We'll email you the moment an admin approves it."
+            );
+          } else if (status === "suspended") {
+            setError(
+              "This account is suspended. Reach out to contact@autisable.com if you think this is a mistake."
+            );
+          } else if (status === "removed") {
+            setError("This account has been removed.");
+          } else {
+            setError(`This account isn't active yet (status: ${status}).`);
+          }
+          setLoading(false);
+          return;
+        }
       }
 
       window.location.href = "/dashboard";
