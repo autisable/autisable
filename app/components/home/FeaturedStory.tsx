@@ -37,11 +37,13 @@ export default async function FeaturedStory() {
           >
             <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-zinc-100">
               <Image
-                src="/VizyAdvocate.png"
+                src={post.image || "/VizyAdvocate.png"}
                 alt={post.title}
                 fill
+                sizes="(max-width: 768px) 100vw, 50vw"
                 className="object-cover group-hover:scale-105 transition-transform duration-500"
                 priority
+                unoptimized
               />
             </div>
 
