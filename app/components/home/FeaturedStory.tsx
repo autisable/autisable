@@ -2,17 +2,23 @@ import Link from "next/link";
 import Image from "next/image";
 import { supabaseAdmin } from "@/app/lib/supabase";
 
-const FEATURED_SLUG = "the-autism-dad-mindset-shift-from-fix-to-support-moq9ykc9";
-
 export default async function FeaturedStory() {
   if (!supabaseAdmin) return null;
+  // Pick the most-recently-published post the editor flipped to
+  // is_featured=true. Editor controls this from the post editor's
+  // "Featured" checkbox — no code change needed to rotate the
+  // homepage feature. If multiple posts carry the flag (e.g. the
+  // editor forgot to uncheck the previous one) we use the newest;
+  // if none do, return null and skip the section entirely.
   const { data: post } = await supabaseAdmin
     .from("blog_posts")
     .select("id, slug, title, excerpt, image, category, date, read_time, author_name")
-    .eq("slug", FEATURED_SLUG)
     .eq("is_published", true)
+    .eq("is_featured", true)
     .lte("date", new Date().toISOString())
-    .single();
+    .order("date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (!post) return null;
 
