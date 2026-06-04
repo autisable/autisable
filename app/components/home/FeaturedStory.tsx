@@ -35,12 +35,16 @@ export default async function FeaturedStory() {
             href={`/blog/${post.slug}/`}
             className="grid md:grid-cols-2 gap-8 items-center"
           >
-            <div className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-zinc-100">
+            <div className="relative aspect-[16/9] rounded-2xl overflow-hidden bg-zinc-100">
               <Image
                 src={post.image || "/VizyAdvocate.png"}
                 alt={post.title}
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
+                // 16:9 matches the recommended featured-image ratio in
+                // the editor (1200×630). object-cover keeps the slot
+                // filled if a particular post's image deviates from
+                // that ratio.
                 className="object-cover group-hover:scale-105 transition-transform duration-500"
                 priority
                 unoptimized
