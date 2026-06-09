@@ -1,0 +1,432 @@
+// ── INIT SELECTS ──────────────────────────────────────────────────────
+const STATES=['Alabama','Alaska','Arizona','Arkansas','California','Colorado','Connecticut','Delaware','Florida','Georgia','Hawaii','Idaho','Illinois','Indiana','Iowa','Kansas','Kentucky','Louisiana','Maine','Maryland','Massachusetts','Michigan','Minnesota','Mississippi','Missouri','Montana','Nebraska','Nevada','New Hampshire','New Jersey','New Mexico','New York','North Carolina','North Dakota','Ohio','Oklahoma','Oregon','Pennsylvania','Rhode Island','South Carolina','South Dakota','Tennessee','Texas','Utah','Vermont','Virginia','Washington','West Virginia','Wisconsin','Wyoming'];
+document.querySelectorAll('select').forEach(s=>STATES.forEach(st=>{const o=document.createElement('option');o.textContent=st;s.appendChild(o);}));
+
+// ── STATE ─────────────────────────────────────────────────────────────
+const sel={pc:null,tc:null,dc:null};
+let currentAge=6,renderCount=0;
+
+function selectCard(g,v){
+  document.querySelectorAll(`[id^="${g}-"]`).forEach(e=>e.classList.remove('selected'));
+  document.getElementById(`${g}-${v}`).classList.add('selected');
+  sel[g]=v;
+}
+function switchTab(t){
+  ['phase','age','diagnosis'].forEach(x=>{
+    document.getElementById('tab-'+x).classList.toggle('active',x===t);
+    document.getElementById('panel-'+x).classList.toggle('active',x===t);
+  });
+}
+function updateAge(v){
+  currentAge=parseInt(v);
+  document.getElementById('age-display').textContent=v==0?'Birth':v==22?'Age 22+':'Age '+v;
+  const p=(v/22)*100;
+  document.getElementById('age-slider').style.background=`linear-gradient(to right,#2B7BBF 0%,#2B7BBF ${p}%,#E2DDD6 ${p}%,#E2DDD6 100%)`;
+}
+
+// ── PHASE DATA ────────────────────────────────────────────────────────
+const phaseData={
+  ei:{label:'Early Intervention (Birth–3)',badge:'Ages 0–3',
+    blogs:[
+      {t:'Navigating Autism: Early Stages',u:'https://autisable.com/blog/full-circle/'},
+      {t:'10 Things Parents Can Do for Their Child with Autism',u:'https://autisable.com/2024/07/17/10-things-parents-can-help-child-autism/'},
+      {t:'Hyposensitivity and Autism',u:'https://autisable.com/2009/06/26/hyposensitivity-and-autism/'},
+      {t:'Understanding Sensory Processing Disorder',u:'https://autisable.com/2017/02/02/helping-you-understand-sensory-processing-disorder-spd/'},
+      {t:'Unfiltered: A Parent\'s Reality',u:'https://autisable.com/2017/07/22/unfiltered/'}
+    ],
+    resources:[
+      {icon:'🗓️',name:'VizyPlan',tag:'tag-vizyplan',tagLabel:'Tool',desc:'Visual schedules built for autistic kids — routines, transitions, and daily structure that actually work at this age.',url:'https://vizyplan.com',urlLabel:'Try Free'},
+      {icon:'📋',name:'Find Your State EI Program',tag:'tag-state',tagLabel:'State',desc:'Every state runs its own Early Intervention program. Enter your state to find your local contact and referral process.',url:'https://www.cdc.gov/ncbddd/actearly/parents/states.html',urlLabel:'Find Your State'},
+      {icon:'👨‍👩‍👧',name:'Parent Training & Info Centers (PTI)',tag:'tag-federal',tagLabel:'Federal',desc:'Free advocacy support from trained parent specialists. One PTI in every state — they know your state\'s system.',url:'https://www.parentcenterhub.org/find-your-center/',urlLabel:'Find Your PTI'},
+      {icon:'📖',name:'CDC "Learn the Signs. Act Early."',tag:'tag-federal',tagLabel:'Federal',desc:'Milestone tracking resources, M-CHAT screening tool, and what to do if you have concerns.',url:'https://www.cdc.gov/ncbddd/actearly/index.html',urlLabel:'Learn More'},
+      {icon:'⚖️',name:'Wrightslaw — IDEA Part C Rights',tag:'tag-school',tagLabel:'Rights',desc:'Plain-language breakdown of your rights under IDEA Part C, including evaluation timelines and the IFSP process.',url:'https://www.wrightslaw.com/info/ei.index.htm',urlLabel:'Read More'},
+      {icon:'🏥',name:'Find a Developmental Pediatrician',tag:'tag-community',tagLabel:'Provider',desc:'AADP directory to find developmental-behavioral pediatricians accepting new patients near you.',url:'https://www.aadpeds.org/find-a-provider',urlLabel:'Search Directory'}
+    ],
+    phases:[
+      {icon:'🩺',title:'Developmental Monitoring',sub:'Well-child visits, milestone tracking',
+       services:['Pediatric wellness visits (AAP schedule)','ASQ-3 developmental screening','M-CHAT-R/F autism screening at 18 & 24 months'],
+       therapies:['Speech-Language Evaluation','Occupational Therapy Evaluation','Early Intervention referral (Part C IDEA)'],
+       rights:['You can request EI evaluation at no cost — federal right under IDEA Part C','Evaluation must happen within 45 days of referral','Services provided in natural environments (home, daycare)'],
+       tip:'You don\'t need a diagnosis to access Early Intervention. A developmental delay alone qualifies in most states. Ask your pediatrician to refer you now — waitlists are real.'},
+      {icon:'📝',title:'IFSP — Your First Plan',sub:'Individualized Family Service Plan',
+       services:['IFSP meeting within 45 days of referral','Annual review required','Family outcomes included — not just child outcomes'],
+       therapies:['Speech Therapy (in-home or community)','ABA (if appropriate)','Developmental Therapy','Physical Therapy (if needed)'],
+       rights:['You are a full team member — not a guest','Services are free under Part C','You can request additional evaluations at any time'],
+       tip:'The IFSP is a living document. You can call a meeting to change it anytime. You don\'t have to wait for the annual review if something isn\'t working.'}
+    ]
+  },
+  preschool:{label:'Preschool (Ages 3–5)',badge:'Ages 3–5',
+    blogs:[
+      {t:'5 Ways to Adhere to an IEP for Special Needs Children',u:'https://autisable.com/2021/02/16/the-other-victims-of-the-pandemic-5-ways-to-adhere-to-an-individualized-education-program-for-special-needs-children/'},
+      {t:'Understanding Sensory Processing Disorder',u:'https://autisable.com/2017/02/02/helping-you-understand-sensory-processing-disorder-spd/'},
+      {t:'Sensory Friendly Snacks for Autism',u:'https://autisable.com/2024/10/30/tips-to-introduce-healthy-sensory-friendly-snacks/'},
+      {t:'10 Things Parents Can Do for Their Child with Autism',u:'https://autisable.com/2024/07/17/10-things-parents-can-help-child-autism/'},
+      {t:'Navigating School Challenges as an Autistic Family',u:'https://autisable.com/blog/full-circle/'}
+    ],
+    resources:[
+      {icon:'🗓️',name:'VizyPlan',tag:'tag-vizyplan',tagLabel:'Tool',desc:'Visual schedules are the single most effective preschool support. VizyPlan is built specifically for autistic kids making their first school transition.',url:'https://vizyplan.com',urlLabel:'Try Free'},
+      {icon:'📋',name:'Find Your State Special Ed Agency (Part B)',tag:'tag-state',tagLabel:'State',desc:'Your state\'s IDEA Part B lead agency handles school-age services starting at age 3. Find your state contact here.',url:'https://www.parentcenterhub.org/idea-part-b-agencies/',urlLabel:'Find Your State'},
+      {icon:'👨‍👩‍👧',name:'Parent Training & Info Centers (PTI)',tag:'tag-federal',tagLabel:'Federal',desc:'Free specialists who know your state\'s special education system and can attend IEP meetings with you.',url:'https://www.parentcenterhub.org/find-your-center/',urlLabel:'Find Your PTI'},
+      {icon:'⚖️',name:'Wrightslaw — IEP Rights at 3',tag:'tag-school',tagLabel:'Rights',desc:'The transition from Part C to Part B is complex. Wrightslaw explains what must happen by your child\'s 3rd birthday.',url:'https://www.wrightslaw.com/info/trans.3to5.index.htm',urlLabel:'Read More'},
+      {icon:'🏥',name:'Find an OT or SLP Near You',tag:'tag-community',tagLabel:'Provider',desc:'AOTA and ASHA directories to find private occupational therapists and speech-language pathologists in your area.',url:'https://www.asha.org/profind/',urlLabel:'Search Directory'},
+      {icon:'💊',name:'Autism Speaks — State Resource Guide',tag:'tag-state',tagLabel:'State',desc:'State-by-state breakdown of services, insurance mandates, and Medicaid programs for young children.',url:'https://www.autismspeaks.org/state-resource-guide',urlLabel:'Find Your State'}
+    ],
+    phases:[
+      {icon:'🔄',title:'Part C → Part B Transition',sub:'Early Intervention to School District',
+       services:['Transition conference required by age 2.5','Eligibility evaluation by school district','IEP must be in place by 3rd birthday'],
+       therapies:['Speech-Language Therapy','Occupational Therapy','Applied Behavior Analysis (ABA)','Developmental Preschool placement'],
+       rights:['District must evaluate your child at no cost before age 3','Right to Independent Educational Evaluation (IEE) if you disagree','Placement options: inclusive, specialized, or blended classroom'],
+       tip:'Don\'t assume the school district\'s evaluation tells the whole story. You can share private evaluations. Your signature on an IEP is powerful — don\'t rush it.'}
+    ]
+  },
+  elementary:{label:'Elementary School (Ages 6–11)',badge:'Ages 6–11',
+    blogs:[
+      {t:'My Son Threw a Shoe in Class Today',u:'https://autisable.com/2009/07/08/my-son-threw-a-shoe-in-class-today/'},
+      {t:'5 Ways to Adhere to an IEP for Special Needs Children',u:'https://autisable.com/2021/02/16/the-other-victims-of-the-pandemic-5-ways-to-adhere-to-an-individualized-education-program-for-special-needs-children/'},
+      {t:'Understanding Autistic Meltdowns',u:'https://autisable.com/blog/freakout-kid-is-actually-a-sober-reminder/'},
+      {t:'Helping You Understand Sensory Processing Disorder',u:'https://autisable.com/2017/02/02/helping-you-understand-sensory-processing-disorder-spd/'},
+      {t:'7 Rules I\'ve Learned as a Special Needs Parent',u:'https://autisable.com/2021/12/30/7-rules-ive-learned-as-a-special-needs-parent/'}
+    ],
+    resources:[
+      {icon:'🗓️',name:'VizyPlan',tag:'tag-vizyplan',tagLabel:'Tool',desc:'Homework routines, after-school transitions, morning schedules — VizyPlan handles the daily structure that reduces anxiety and meltdowns.',url:'https://vizyplan.com',urlLabel:'Try Free'},
+      {icon:'⚖️',name:'Wrightslaw — IEP Rights',tag:'tag-school',tagLabel:'Rights',desc:'The definitive plain-language resource for parents navigating IEPs, evaluations, and school-based rights under IDEA.',url:'https://www.wrightslaw.com',urlLabel:'Visit Wrightslaw'},
+      {icon:'👨‍👩‍👧',name:'Parent Training & Info Centers (PTI)',tag:'tag-federal',tagLabel:'Federal',desc:'Free IEP meeting support, advocacy training, and knowledge of your state\'s special education complaint process.',url:'https://www.parentcenterhub.org/find-your-center/',urlLabel:'Find Your PTI'},
+      {icon:'🏫',name:'Your State\'s Special Education Complaint Process',tag:'tag-state',tagLabel:'State',desc:'Every state has a process for filing complaints when a district violates IDEA. Most parents don\'t know this exists.',url:'https://www.parentcenterhub.org/dispute-resolution/',urlLabel:'Learn How'},
+      {icon:'🧠',name:'CHADD — Coexisting ADHD & Autism',tag:'tag-community',tagLabel:'Resource',desc:'ADHD and autism frequently co-occur. CHADD has parent resources specifically for navigating both in school settings.',url:'https://chadd.org',urlLabel:'Visit CHADD'},
+      {icon:'💰',name:'Special Needs Financial Planning',tag:'tag-financial',tagLabel:'Financial',desc:'ABLE accounts, special needs trusts, and what you need to know about financial planning while your child is young.',url:'https://www.ablenrc.org',urlLabel:'Learn About ABLE'}
+    ],
+    phases:[
+      {icon:'📄',title:'The IEP System',sub:'How it works and what to watch for',
+       services:['Annual IEP meetings','Triennial Re-evaluation every 3 years','Progress reports at same frequency as report cards'],
+       therapies:['In-school Speech Therapy','Occupational Therapy','Resource Room / Learning Support','1:1 Aide (if appropriate and documented)'],
+       rights:['You must consent before any major placement change','You can request an IEP meeting at any time — not just annually','Prior Written Notice required for any district decision'],
+       tip:'Goals in the IEP should be measurable. Vague goals like "will improve communication" are not enforceable. Ask: How will we know if this goal is met? Who measures it, and how often?'},
+      {icon:'🧠',title:'Social & Emotional Development',sub:'What\'s typical for this phase',
+       services:['Peer interaction goals in IEP','Social skills groups','School counselor check-ins'],
+       therapies:['Social Thinking curriculum','CBT adapted for autism (if anxiety is a factor)','Sensory diet integration (OT-led)'],
+       rights:['Behavioral support must be proactive, not just punitive','Functional Behavior Assessment (FBA) is your right if behavior is a barrier','Schools cannot use restraint or seclusion as punishment'],
+       tip:'Friendships look different for autistic kids — that\'s okay. What matters is connection quality, not quantity. Watch for signs your child is being excluded, not just "preferring to be alone."'}
+    ]
+  },
+  middle:{label:'Middle School (Ages 11–14)',badge:'Ages 11–14',
+    blogs:[
+      {t:'Understanding Autistic Meltdowns',u:'https://autisable.com/blog/freakout-kid-is-actually-a-sober-reminder/'},
+      {t:'5 Ways to Adhere to an IEP for Special Needs Children',u:'https://autisable.com/2021/02/16/the-other-victims-of-the-pandemic-5-ways-to-adhere-to-an-individualized-education-program-for-special-needs-children/'},
+      {t:'Navigating School Challenges as an Autistic Family',u:'https://autisable.com/blog/full-circle/'},
+      {t:'7 Rules I\'ve Learned as a Special Needs Parent',u:'https://autisable.com/2021/12/30/7-rules-ive-learned-as-a-special-needs-parent/'},
+      {t:'Special Needs Step-Parenting',u:'https://autisable.com/blog/special-needs-step-parenting/'}
+    ],
+    resources:[
+      {icon:'🗓️',name:'VizyPlan',tag:'tag-vizyplan',tagLabel:'Tool',desc:'Middle school\'s schedule chaos — multiple teachers, changing classrooms, unpredictable transitions — is exactly what VizyPlan was built to address.',url:'https://vizyplan.com',urlLabel:'Try Free'},
+      {icon:'⚖️',name:'Wrightslaw — Transition Planning Rights',tag:'tag-school',tagLabel:'Rights',desc:'Transition goals must appear in the IEP by age 16 in federal law — earlier in many states. Know your rights before the school brings it up.',url:'https://www.wrightslaw.com/info/trans.index.htm',urlLabel:'Read More'},
+      {icon:'🧠',name:'Anxiety in Autism — ADAA Resources',tag:'tag-community',tagLabel:'Resource',desc:'Anxiety is the most common co-occurring condition in autism. ADAA has resources specifically for autistic adolescents.',url:'https://adaa.org/learn-from-us/from-the-experts/blog-posts/consumer/autism-and-anxiety',urlLabel:'Visit ADAA'},
+      {icon:'👨‍👩‍👧',name:'Parent Training & Info Centers (PTI)',tag:'tag-federal',tagLabel:'Federal',desc:'PTI specialists can attend IEP meetings, help you write transition goals, and advise on puberty-related IEP additions.',url:'https://www.parentcenterhub.org/find-your-center/',urlLabel:'Find Your PTI'},
+      {icon:'🏫',name:'Your State Vocational Rehab — Start Here',tag:'tag-state',tagLabel:'State',desc:'Many states allow VR referrals as early as age 14. Starting this relationship early beats scrambling at graduation.',url:'https://rsa.ed.gov/about/states',urlLabel:'Find Your State VR'},
+      {icon:'💰',name:'ABLE Accounts for Teens',tag:'tag-financial',tagLabel:'Financial',desc:'Tax-advantaged savings that won\'t disqualify your child from Medicaid or SSI. Start one before they turn 18.',url:'https://www.ablenrc.org',urlLabel:'Learn About ABLE'}
+    ],
+    phases:[
+      {icon:'🌊',title:'The Transition Ramp Begins',sub:'Start planning earlier than you think',
+       services:['Transition goals in IEP by age 16 (earlier in many states)','Vocational interest assessments','Self-advocacy skill building'],
+       therapies:['Executive Function coaching','Anxiety support (this phase spikes)','Puberty & body safety education (specialized)'],
+       rights:['Student must be invited to their own IEP meeting','Transition assessment should drive transition goals','You can request an updated evaluation as circumstances change'],
+       tip:'Middle school is socially brutal for most kids. For autistic kids it can be disorienting at a deep level. Don\'t wait for a crisis to add social-emotional support to the IEP. Put it in before they need it.'}
+    ]
+  },
+  high:{label:'High School (Ages 14–18)',badge:'Ages 14–18',
+    blogs:[
+      {t:'5 Ways to Adhere to an IEP for Special Needs Children',u:'https://autisable.com/2021/02/16/the-other-victims-of-the-pandemic-5-ways-to-adhere-to-an-individualized-education-program-for-special-needs-children/'},
+      {t:'Navigating School Challenges as an Autistic Family',u:'https://autisable.com/blog/full-circle/'},
+      {t:'7 Rules I\'ve Learned as a Special Needs Parent',u:'https://autisable.com/2021/12/30/7-rules-ive-learned-as-a-special-needs-parent/'},
+      {t:'10 Things Parents Can Do for Their Child with Autism',u:'https://autisable.com/2024/07/17/10-things-parents-can-help-child-autism/'},
+      {t:'Special Needs Step-Parenting',u:'https://autisable.com/blog/special-needs-step-parenting/'}
+    ],
+    resources:[
+      {icon:'🗓️',name:'VizyPlan',tag:'tag-vizyplan',tagLabel:'Tool',desc:'High school\'s unstructured time and shifting expectations create real anxiety. VizyPlan helps autistic teens build self-directed routines and independence.',url:'https://vizyplan.com',urlLabel:'Try Free'},
+      {icon:'💼',name:'Vocational Rehabilitation — Your State',tag:'tag-state',tagLabel:'State',desc:'Free job skills training, workplace accommodations support, and post-secondary education funding. Apply before graduation — waitlists exist.',url:'https://rsa.ed.gov/about/states',urlLabel:'Find Your State VR'},
+      {icon:'⚖️',name:'Disability Rights Advocates — Transition',tag:'tag-federal',tagLabel:'Rights',desc:'ASAN\'s plain-language guide to post-secondary rights under Section 504, the ADA, and state-specific protections.',url:'https://autisticadvocacy.org/resources/transition/',urlLabel:'Read the Guide'},
+      {icon:'🏛️',name:'Medicaid Waiver — Apply Now',tag:'tag-state',tagLabel:'State',desc:'Adult waiver waitlists in many states run 3–7 years. Apply at 14–16, not at graduation. Find your state\'s application.',url:'https://www.medicaid.gov/medicaid/home-community-based-services/index.html',urlLabel:'Find Your State'},
+      {icon:'💰',name:'SSI — Apply at 18',tag:'tag-federal',tagLabel:'Federal',desc:'Supplemental Security Income applications open at 18. Filing early protects future eligibility and back-pay windows.',url:'https://www.ssa.gov/benefits/ssi/',urlLabel:'Learn About SSI'},
+      {icon:'🎓',name:'Think College — Post-Secondary Options',tag:'tag-community',tagLabel:'Resource',desc:'Database of inclusive post-secondary programs for students with intellectual and developmental disabilities.',url:'https://thinkcollege.net',urlLabel:'Search Programs'}
+    ],
+    phases:[
+      {icon:'🗺️',title:'Transition Planning in Earnest',sub:'Post-secondary goals must be specific',
+       services:['Formal Transition Assessment','Vocational Rehabilitation referral (14–16)','Adult agency connections start here'],
+       therapies:['Job coaching and work experience integration','Independent living skills (if applicable)','Driver\'s ed evaluation (if appropriate)'],
+       rights:['IEP transition goals must connect to measurable post-secondary outcomes','Vocational Rehabilitation is a separate system — apply early','At 18, educational rights transfer to the student in most states'],
+       tip:'The cliff after high school is real — services don\'t automatically continue. Vocational Rehab, Medicaid waiver programs, and adult day programs all have waitlists. Start those applications in 9th grade, not 12th.'}
+    ]
+  },
+  transition:{label:'Transition to Adult Life (Ages 18–22+)',badge:'Ages 18–22+',
+    blogs:[
+      {t:'Autisable Resources & Affiliates',u:'https://autisable.com/resources/'},
+      {t:'10 Things Parents Can Do for Their Child with Autism',u:'https://autisable.com/2024/07/17/10-things-parents-can-help-child-autism/'},
+      {t:'7 Rules I\'ve Learned as a Special Needs Parent',u:'https://autisable.com/2021/12/30/7-rules-ive-learned-as-a-special-needs-parent/'},
+      {t:'Navigating School Challenges as an Autistic Family',u:'https://autisable.com/blog/full-circle/'},
+      {t:'Special Needs Step-Parenting',u:'https://autisable.com/blog/special-needs-step-parenting/'}
+    ],
+    resources:[
+      {icon:'🗓️',name:'VizyPlan',tag:'tag-vizyplan',tagLabel:'Tool',desc:'Adult independence starts with managing your own schedule. VizyPlan supports autistic adults in building sustainable daily routines without a parent running them.',url:'https://vizyplan.com',urlLabel:'Try Free'},
+      {icon:'🏛️',name:'Medicaid HCBS Waivers — Your State',tag:'tag-state',tagLabel:'State',desc:'Home and Community-Based Services waivers fund supported living, employment support, and day services. Every state is different. Apply if you haven\'t.',url:'https://www.medicaid.gov/medicaid/home-community-based-services/index.html',urlLabel:'Find Your State'},
+      {icon:'💼',name:'Vocational Rehabilitation',tag:'tag-state',tagLabel:'State',desc:'Free job placement, workplace accommodation support, and post-secondary education assistance for adults with disabilities.',url:'https://rsa.ed.gov/about/states',urlLabel:'Find Your State VR'},
+      {icon:'⚖️',name:'Supported Decision-Making vs. Guardianship',tag:'tag-federal',tagLabel:'Rights',desc:'Guardianship removes all legal rights. ASAN\'s guide explains less restrictive alternatives your family should consider first.',url:'https://autisticadvocacy.org/policy/briefs/supported-decision-making/',urlLabel:'Read the Guide'},
+      {icon:'💰',name:'SSI / SSDI — Benefits Navigator',tag:'tag-federal',tagLabel:'Federal',desc:'Benefits.gov and ASAN\'s Benefits 101 guide help families understand what their young adult qualifies for.',url:'https://www.ssa.gov/benefits/ssi/',urlLabel:'Learn More'},
+      {icon:'🏠',name:'AARP — Housing Options for Adults with Disabilities',tag:'tag-community',tagLabel:'Resource',desc:'From group homes to independent living with support — a plain-language overview of adult housing options.',url:'https://www.aucd.org/template/page.cfm?id=667',urlLabel:'Explore Options'}
+    ],
+    phases:[
+      {icon:'🏛️',title:'Adult Systems Navigation',sub:'A completely different world',
+       services:['School services may continue to age 22 (check your state)','Adult Medicaid waiver programs','Supported Employment','Supported Living programs'],
+       therapies:['Community-based ABA (if still indicated)','Mental health support (adult providers)','Occupational therapy for independent living'],
+       rights:['Medicaid waivers are an entitlement — but waitlists can be years long','Guardianship is not always necessary — consider supported decision-making first','SSI/SSDI eligibility begins at 18 — apply'],
+       tip:'Guardianship is often pursued automatically — but it removes all legal rights entirely. Explore supported decision-making, power of attorney, and representative payee arrangements before making that call. Talk to a disability rights attorney.'}
+    ]
+  }
+};
+
+// ── DX DATA ───────────────────────────────────────────────────────────
+const dxData={
+  concerned:{label:'Something Feels Different',
+    blogs:[
+      {t:'10 Things Parents Can Do for Their Child with Autism',u:'https://autisable.com/2024/07/17/10-things-parents-can-help-child-autism/'},
+      {t:'Understanding Sensory Processing Disorder',u:'https://autisable.com/2017/02/02/helping-you-understand-sensory-processing-disorder-spd/'},
+      {t:'Hyposensitivity and Autism',u:'https://autisable.com/2009/06/26/hyposensitivity-and-autism/'},
+      {t:'Unfiltered: A Parent\'s Reality',u:'https://autisable.com/2017/07/22/unfiltered/'},
+      {t:'When Sensory Seeking Behaviour Goes Wrong',u:'https://autisable.com/2016/09/23/when-sensory-seeking-behaviour-goes-very-wrong/'}
+    ],
+    resources:[
+      {icon:'📱',name:'M-CHAT-R/F Screening Tool',tag:'tag-federal',tagLabel:'Tool',desc:'The standard autism screening questionnaire used at 18 and 24 month well-child visits. You can complete it yourself before seeing the doctor.',url:'https://mchatscreen.com',urlLabel:'Take the Screening'},
+      {icon:'📋',name:'CDC Act Early — Milestone Tracker',tag:'tag-federal',tagLabel:'Tool',desc:'Free app and checklist from the CDC to track developmental milestones and share with your pediatrician.',url:'https://www.cdc.gov/ncbddd/actearly/milestones/index.html',urlLabel:'Use the Tracker'},
+      {icon:'👨‍👩‍👧',name:'Parent Training & Info Centers (PTI)',tag:'tag-federal',tagLabel:'Federal',desc:'Free help from parent specialists before, during, and after any evaluation. They know the system in your state.',url:'https://www.parentcenterhub.org/find-your-center/',urlLabel:'Find Your PTI'},
+      {icon:'📞',name:'Find Your State EI Program (Under 3)',tag:'tag-state',tagLabel:'State',desc:'No doctor required to start Early Intervention. Call your state\'s EI program directly with your concerns.',url:'https://www.cdc.gov/ncbddd/actearly/parents/states.html',urlLabel:'Find Your State'},
+      {icon:'🏥',name:'Find a Developmental Pediatrician',tag:'tag-community',tagLabel:'Provider',desc:'AADP directory to find developmental-behavioral pediatricians near you — the specialists who do autism evaluations.',url:'https://www.aadpeds.org/find-a-provider',urlLabel:'Search Directory'}
+    ],
+    steps:[
+      {icon:'👀',title:'Trust Your Instincts',sub:'You know your child',items:['Document what you\'re observing — videos are powerful','Request M-CHAT-R/F autism screening at your pediatrician\'s next visit','Don\'t accept "wait and see" if your gut says otherwise']},
+      {icon:'📞',title:'Who to Call First',sub:'Starting the referral chain',items:['Pediatrician: first stop — ask for a referral to developmental pediatrics','Early Intervention (under 3): Call your state\'s EI program directly — no doctor required','School district (3+): Request a free evaluation in writing']},
+      {icon:'⏱️',title:'Realistic Timelines',sub:'What to expect',items:['Developmental peds waitlists: 6 months to 2+ years in many areas','EI evaluation: must happen within 45 days of referral (federal law)','School eval: must begin within 60 days of written consent']}
+    ],
+    tip:'While you wait: get the evaluation started, document everything, and connect with other parents. The diagnosis will matter — but your observations already matter right now.'
+  },
+  waitlist:{label:'On a Waitlist',
+    blogs:[
+      {t:'Understanding Sensory Processing Disorder',u:'https://autisable.com/2017/02/02/helping-you-understand-sensory-processing-disorder-spd/'},
+      {t:'Balance and Coordination in Autistic Children',u:'https://autisable.com/2010/08/21/problems-with-balance-and-coordination-for-an-autistic-child/'},
+      {t:'Hyposensitivity and Autism',u:'https://autisable.com/2009/06/26/hyposensitivity-and-autism/'},
+      {t:'10 Things Parents Can Do for Their Child with Autism',u:'https://autisable.com/2024/07/17/10-things-parents-can-help-child-autism/'},
+      {t:'Unfiltered: A Parent\'s Reality',u:'https://autisable.com/2017/07/22/unfiltered/'}
+    ],
+    resources:[
+      {icon:'🗓️',name:'VizyPlan',tag:'tag-vizyplan',tagLabel:'Tool',desc:'Visual routines reduce meltdowns and anxiety even before a formal diagnosis. VizyPlan works during the waiting period.',url:'https://vizyplan.com',urlLabel:'Try Free'},
+      {icon:'📞',name:'Start Early Intervention Now',tag:'tag-state',tagLabel:'State',desc:'You do not need a diagnosis to access Early Intervention. A developmental delay is enough. Call your state directly.',url:'https://www.cdc.gov/ncbddd/actearly/parents/states.html',urlLabel:'Find Your State EI'},
+      {icon:'👨‍👩‍👧',name:'Parent Training & Info Centers (PTI)',tag:'tag-federal',tagLabel:'Federal',desc:'They can guide you through what services your child can access right now, without waiting for a diagnosis.',url:'https://www.parentcenterhub.org/find-your-center/',urlLabel:'Find Your PTI'},
+      {icon:'🏥',name:'Speech or OT Under a Delay Code',tag:'tag-community',tagLabel:'Provider',desc:'Ask your pediatrician to refer for speech or OT under a "developmental delay" code — insurance often covers this before a formal autism diagnosis.',url:'https://www.asha.org/profind/',urlLabel:'Find a Provider'},
+      {icon:'📖',name:'Autisable Community',tag:'tag-community',tagLabel:'Community',desc:'Connect with parents who have navigated exactly where you are. Autisable has been here 18 years.',url:'https://autisable.com',urlLabel:'Join the Community'}
+    ],
+    steps:[
+      {icon:'📋',title:'What to Do While You Wait',sub:'The waiting period isn\'t wasted time',items:['Request Early Intervention — no diagnosis needed','Keep a video log of behaviors, communication, and daily patterns','Ask your pediatrician if speech or OT can start now under a developmental delay code']},
+      {icon:'🗂️',title:'Build Your Paper Trail',sub:'Documentation will serve you later',items:['Get any screening results in writing','Document conversations with doctors (date, what was said, who)','Start a folder — physical or digital — for every record']},
+      {icon:'🤝',title:'Find Your People',sub:'Community while you wait',items:['Connect with local autism family groups','Autisable has been here 18 years — we\'re here for this','Parent Training and Information Centers — one in every state, free']}
+    ],
+    tip:'Waitlists are genuinely one of the hardest parts. You\'re not behind — the system is just slow. Starting EI or school-based services before the formal diagnosis is the right move.'
+  },
+  newdx:{label:'Just Diagnosed',
+    blogs:[
+      {t:'Sensory Friendly Snacks for Autism',u:'https://autisable.com/2024/10/30/tips-to-introduce-healthy-sensory-friendly-snacks/'},
+      {t:'Meltdown in the Sky: Flying with Autism',u:'https://autisable.com/2010/11/09/meltdown-in-the-skies-a-personal-story/'},
+      {t:'Understanding Autistic Meltdowns',u:'https://autisable.com/blog/freakout-kid-is-actually-a-sober-reminder/'},
+      {t:'10 Things Parents Can Do for Their Child with Autism',u:'https://autisable.com/2024/07/17/10-things-parents-can-help-child-autism/'},
+      {t:'7 Rules I\'ve Learned as a Special Needs Parent',u:'https://autisable.com/2021/12/30/7-rules-ive-learned-as-a-special-needs-parent/'}
+    ],
+    resources:[
+      {icon:'🗓️',name:'VizyPlan',tag:'tag-vizyplan',tagLabel:'Tool',desc:'Visual schedules are often one of the first and most impactful tools after a new diagnosis. Start here.',url:'https://vizyplan.com',urlLabel:'Try Free'},
+      {icon:'👨‍👩‍👧',name:'Parent Training & Info Centers (PTI)',tag:'tag-federal',tagLabel:'Federal',desc:'Free, state-based support to help you understand the evaluation report and know what to ask for next.',url:'https://www.parentcenterhub.org/find-your-center/',urlLabel:'Find Your PTI'},
+      {icon:'⚖️',name:'Wrightslaw — Start Here',tag:'tag-school',tagLabel:'Rights',desc:'The best plain-language resource for understanding your child\'s educational rights after a diagnosis.',url:'https://www.wrightslaw.com',urlLabel:'Visit Wrightslaw'},
+      {icon:'📖',name:'Autism Speaks — First 100 Days Kit',tag:'tag-community',tagLabel:'Resource',desc:'Free downloadable guide specifically designed for newly diagnosed families — what to do in the first months.',url:'https://www.autismspeaks.org/tool-kit/100-day-kit-young-children',urlLabel:'Download Free'},
+      {icon:'📋',name:'Request an IEP Evaluation in Writing',tag:'tag-school',tagLabel:'School',desc:'Template letters and guidance for requesting your school district evaluate your newly diagnosed child.',url:'https://www.wrightslaw.com/info/iep.index.htm',urlLabel:'Get Template'}
+    ],
+    steps:[
+      {icon:'🌊',title:'First: Breathe',sub:'No emergency action required this week',items:['The diagnosis is a door opener, not a verdict','You have time to learn, ask questions, and make thoughtful decisions','Grief, relief, confusion — all of it is normal. None of it is wrong.']},
+      {icon:'📚',title:'Understand the Report',sub:'What that evaluation actually says',items:['Ask the evaluator to walk through every section','Request a plain-language summary if the report is dense','Support level (1, 2, 3) is one snapshot — not fixed forever']},
+      {icon:'🏫',title:'School Action Items',sub:'If your child is school-age',items:['Share the diagnosis report with the school in writing','Request an IEP evaluation or IEP meeting in writing','You can request an IEP if your child already has a 504']}
+    ],
+    tip:'You don\'t have to make every decision in the first month. The families who navigate this best give themselves permission to learn before they act. Autisable has been here 18 years — we\'re not going anywhere.'
+  },
+  established:{label:'Established — Planning Ahead',
+    blogs:[
+      {t:'5 Ways to Adhere to an IEP for Special Needs Children',u:'https://autisable.com/2021/02/16/the-other-victims-of-the-pandemic-5-ways-to-adhere-to-an-individualized-education-program-for-special-needs-children/'},
+      {t:'7 Rules I\'ve Learned as a Special Needs Parent',u:'https://autisable.com/2021/12/30/7-rules-ive-learned-as-a-special-needs-parent/'},
+      {t:'Navigating School Challenges as an Autistic Family',u:'https://autisable.com/blog/full-circle/'},
+      {t:'Autisable Resources & Affiliates',u:'https://autisable.com/resources/'},
+      {t:'10 Things Parents Can Do for Their Child with Autism',u:'https://autisable.com/2024/07/17/10-things-parents-can-help-child-autism/'}
+    ],
+    resources:[
+      {icon:'🗓️',name:'VizyPlan',tag:'tag-vizyplan',tagLabel:'Tool',desc:'As your child grows, VizyPlan scales with them — from simple picture schedules for young kids to self-directed routine management for teens.',url:'https://vizyplan.com',urlLabel:'Try Free'},
+      {icon:'👨‍👩‍👧',name:'Parent Training & Info Centers (PTI)',tag:'tag-federal',tagLabel:'Federal',desc:'PTIs offer free IEP coaching, help you request evaluations, and know your state\'s complaint and mediation processes.',url:'https://www.parentcenterhub.org/find-your-center/',urlLabel:'Find Your PTI'},
+      {icon:'⚖️',name:'Wrightslaw',tag:'tag-school',tagLabel:'Rights',desc:'The ongoing reference for IEP rights, dispute resolution, evaluations, and transition law — bookmarked by experienced autism families everywhere.',url:'https://www.wrightslaw.com',urlLabel:'Visit Wrightslaw'},
+      {icon:'💰',name:'Special Needs Financial Planning',tag:'tag-financial',tagLabel:'Financial',desc:'ABLE accounts, special needs trusts, and planning ahead for your child\'s adult financial security.',url:'https://www.ablenrc.org',urlLabel:'Learn About ABLE'},
+      {icon:'🏛️',name:'Apply for Medicaid Waiver Now',tag:'tag-state',tagLabel:'State',desc:'If you haven\'t applied for your state\'s Medicaid HCBS waiver yet, do it now. Waitlists in most states run 3–7 years.',url:'https://www.medicaid.gov/medicaid/home-community-based-services/index.html',urlLabel:'Find Your State'}
+    ],
+    steps:[
+      {icon:'🔭',title:'Look 2–3 Years Out',sub:'What\'s the next major transition?',items:['EI → Preschool at 3?','Elementary → Middle: significant shift in social demands','Middle → High: transition planning should already be in the IEP','High → Adult: the cliff is real — start adult applications NOW']},
+      {icon:'🔐',title:'Protect Your Rights',sub:'What families often miss',items:['Annual IEP review is a floor, not a ceiling — request meetings anytime','You can reject IEP goals you disagree with','Triennial re-evals are mandatory — know when yours is due']},
+      {icon:'💡',title:'Proactive Moves',sub:'What experienced families recommend',items:['Get private evaluations periodically — school evals have conflicts of interest','Build relationships with providers before you urgently need them','Connect with your state\'s PTI for free advocacy support']}
+    ],
+    tip:'The families who feel least overwhelmed stopped waiting for the system to proactively help them — and started running a step ahead of it. That\'s not cynicism; it\'s just how it works.'
+  }
+};
+
+// ── BEHAVIORAL DATA ───────────────────────────────────────────────────
+const bData=[
+  {key:'sensory',icon:'🌊',title:'Sensory Processing',
+   blogs:[{t:'Understanding Sensory Processing Disorder',u:'https://autisable.com/2017/02/02/helping-you-understand-sensory-processing-disorder-spd/'},{t:'Hyposensitivity and Autism',u:'https://autisable.com/2009/06/26/hyposensitivity-and-autism/'},{t:'Balance & Coordination for Autistic Children',u:'https://autisable.com/2010/08/21/problems-with-balance-and-coordination-for-an-autistic-child/'},{t:'When Sensory Seeking Behaviour Goes Wrong',u:'https://autisable.com/2016/09/23/when-sensory-seeking-behaviour-goes-very-wrong/'},{t:'Nine Ways VELCRO Makes Life Easier with Autism',u:'https://autisable.com/blog/nine-ways-that-velcro-makes-life-easier-with-autism/'}],
+   what:['Affects 90%+ of autistic people — neurological, not behavioral','Hyper-sensitivity: sounds, lights, textures, smells can be overwhelming or painful','Hypo-sensitivity: may seek intense input — spinning, crashing, tight pressure, loud noises','Proprioception and vestibular differences affect body awareness and balance'],
+   mitigate:['Sensory diet (OT-designed): scheduled input throughout the day to regulate the nervous system','Noise-canceling headphones, dimmer switches, seam-free socks, unscented products','Weighted blankets, compression vests, fidget tools — trial and error; what works changes','Identify triggers before they escalate — exit planning for noisy environments is smart, not giving up']},
+  {key:'food',icon:'🍽️',title:'Food & Eating',
+   blogs:[{t:'Sensory Friendly Snacks for Autism',u:'https://autisable.com/2024/10/30/tips-to-introduce-healthy-sensory-friendly-snacks/'},{t:'Hyposensitivity and Autism',u:'https://autisable.com/2009/06/26/hyposensitivity-and-autism/'},{t:'Understanding Sensory Processing Disorder',u:'https://autisable.com/2017/02/02/helping-you-understand-sensory-processing-disorder-spd/'},{t:'10 Things Parents Can Do for Their Child with Autism',u:'https://autisable.com/2024/07/17/10-things-parents-can-help-child-autism/'},{t:'Unfiltered: A Parent\'s Reality',u:'https://autisable.com/2017/07/22/unfiltered/'}],
+   what:['Food selectivity is extremely common — often texture, color, or temperature, not taste','ARFID can co-occur — this is a real diagnosis, not picky eating','GI issues are significantly more common in autistic people and can drive behavior','Oral motor differences may make some textures physically difficult to manage'],
+   mitigate:['Food chaining: gradually expanding from accepted to similar-but-new foods — OT and SLP can guide','Never use mealtime as a battle; chronic stress narrows the diet further','New foods at low-pressure snack time, not dinner','Pediatric dietitian worth consulting if variety is very limited']},
+  {key:'barometric',icon:'🌦️',title:'Weather & Barometric Pressure',
+   blogs:[{t:'When Sensory Seeking Behaviour Goes Wrong',u:'https://autisable.com/2016/09/23/when-sensory-seeking-behaviour-goes-very-wrong/'},{t:'Understanding Sensory Processing Disorder',u:'https://autisable.com/2017/02/02/helping-you-understand-sensory-processing-disorder-spd/'},{t:'Hyposensitivity and Autism',u:'https://autisable.com/2009/06/26/hyposensitivity-and-autism/'},{t:'Balance & Coordination for Autistic Children',u:'https://autisable.com/2010/08/21/problems-with-balance-and-coordination-for-an-autistic-child/'},{t:'Understanding Autistic Meltdowns',u:'https://autisable.com/blog/freakout-kid-is-actually-a-sober-reminder/'}],
+   what:['Many families report predictable behavioral shifts tied to pressure drops before storms','The mechanism isn\'t fully understood scientifically, but parent observation data is consistent','Joint hypermobility (common in autism) may make pressure changes physically uncomfortable','Heightened interoception means autistic people may feel internal changes before others do'],
+   mitigate:['Track weather alongside behavior for 4–6 weeks using an app that shows barometric pressure','Preemptive regulation on storm days: earlier sensory diet, reduced scheduling, more downtime','Provide extra co-regulation support — don\'t over-explain the weather to the child','Deep pressure input may help on pressure-drop days']},
+  {key:'sleep',icon:'🌙',title:'Sleep Challenges',
+   blogs:[{t:'Unfiltered: A Parent\'s Reality',u:'https://autisable.com/2017/07/22/unfiltered/'},{t:'7 Rules I\'ve Learned as a Special Needs Parent',u:'https://autisable.com/2021/12/30/7-rules-ive-learned-as-a-special-needs-parent/'},{t:'The Autism Dad — Autisable',u:'https://autisable.com/podcasts/the-autism-dad/'},{t:'10 Things Parents Can Do for Their Child with Autism',u:'https://autisable.com/2024/07/17/10-things-parents-can-help-child-autism/'},{t:'Understanding Sensory Processing Disorder',u:'https://autisable.com/2017/02/02/helping-you-understand-sensory-processing-disorder-spd/'}],
+   what:['50–80% of autistic children have significant sleep difficulties — neurological, not parenting','Common patterns: difficulty falling asleep, early waking, night waking, non-restorative sleep','Melatonin production timing is often shifted — the sleep onset signal arrives late','Sleep problems significantly amplify daytime challenges; often the hidden root cause'],
+   mitigate:['Consistent, predictable bedtime routine (same order every night — visual schedule helps)','Low light 60–90 min before bed; screens off','Melatonin (low-dose, immediate release) has solid evidence — discuss with pediatrician','Weighted blankets and white noise worth trying; the right combo is individual']},
+  {key:'meltdowns',icon:'⚡',title:'Meltdowns & Shutdowns',
+   blogs:[{t:'Understanding Autistic Meltdowns',u:'https://autisable.com/blog/freakout-kid-is-actually-a-sober-reminder/'},{t:'Meltdown in the Sky',u:'https://autisable.com/2010/11/09/meltdown-in-the-skies-a-personal-story/'},{t:'My Son Threw a Shoe in Class Today',u:'https://autisable.com/2009/07/08/my-son-threw-a-shoe-in-class-today/'},{t:'Seeing Special Needs Kids from the Outside',u:'https://autisable.com/2011/08/12/seeing-special-needs-kids-from-the-outside/'},{t:'7 Rules I\'ve Learned as a Special Needs Parent',u:'https://autisable.com/2021/12/30/7-rules-ive-learned-as-a-special-needs-parent/'}],
+   what:['Meltdowns are involuntary neurological overload — not tantrums, not manipulation','Shutdowns are the opposite: withdrawal, non-responsiveness, going quiet','Both are communication: the nervous system has run out of capacity','Punishing a meltdown does not address cause and damages trust'],
+   mitigate:['Learn the escalation stages — there is almost always a rumble phase before the storm','Create a safe retreat space, not as punishment but as a regulated option','After the meltdown: wait for calm, then reconnect warmly — no debriefing immediately after','Reduce overall load before known hard situations']},
+  {key:'anxiety',icon:'😰',title:'Anxiety & Transitions',
+   blogs:[{t:'My Son Threw a Shoe in Class Today',u:'https://autisable.com/2009/07/08/my-son-threw-a-shoe-in-class-today/'},{t:'Navigating School Challenges as an Autistic Family',u:'https://autisable.com/blog/full-circle/'},{t:'Understanding Autistic Meltdowns',u:'https://autisable.com/blog/freakout-kid-is-actually-a-sober-reminder/'},{t:'5 Ways to Adhere to an IEP',u:'https://autisable.com/2021/02/16/the-other-victims-of-the-pandemic-5-ways-to-adhere-to-an-individualized-education-program-for-special-needs-children/'},{t:'Special Needs Step-Parenting',u:'https://autisable.com/blog/special-needs-step-parenting/'}],
+   what:['Anxiety is the most common co-occurring condition — estimated 40-60% prevalence','Transitions are a major trigger — activity changes, schedule changes, surprises','In autistic kids, anxiety often looks like rigidity, aggression, or school refusal','Demand avoidance patterns may co-occur and need different support approaches'],
+   mitigate:['Visual schedules and advance warning for transitions (5 more minutes, then we leave)','First-Then boards reduce demand resistance','As much advance notice as possible for unexpected changes','School anxiety: build transition support into the IEP, not just at home']}
+];
+
+const phaseNotes={
+  ei:'At this age, sensory and sleep challenges are often the most disruptive. Food selectivity frequently emerges between 18-30 months. Track everything — your notes are more valuable than you realize.',
+  preschool:'Meltdowns often peak at preschool age as demands increase but coping skills have not caught up. Transition anxiety is very common with new school schedules.',
+  elementary:'School introduces sustained cognitive and social demand — anxiety and sensory overload often spike at school entry. Sleep problems frequently worsen during busy school years.',
+  middle:'Puberty interacts with sensory processing in unpredictable ways. Anxiety often escalates significantly. Food selectivity may intensify or shift.',
+  high:'Anxiety is the dominant behavioral concern for many families in high school. Executive function challenges peak with increased demands.',
+  transition:'Environmental changes in adulthood can trigger significant behavioral shifts. Sleep and anxiety remain ongoing management areas.',
+  general:'These challenges show up across every phase. Understanding them helps you document more clearly and advocate more confidently.'
+};
+
+// RENDER HELPERS
+function blogLinksHtml(blogs){
+  if(!blogs||!blogs.length) return '';
+  return '<div class="blog-links"><div class="bl-label">From Autisable</div>'+blogs.map(b=>'<a class="blog-link" href="'+b.u+'" target="_blank" rel="noopener">'+b.t+'</a>').join('')+'</div>';
+}
+
+function resourcesHtml(resources,state){
+  if(!resources||!resources.length) return '';
+  const stateNote=state?'<p style="font-size:.78rem;color:var(--slate-light);margin-bottom:14px;">Resources include national programs and links to find <strong>'+state+'</strong>-specific options where available.</p>':'';
+  return '<div class="resources-section"><div class="resources-header"><h4>Resources for This Phase</h4></div>'+stateNote+'<div class="res-grid">'+resources.map(r=>{
+    // Brand-asset substitution: VizyPlan rows use the VizyPlan logo
+    // instead of the generic calendar emoji so the tool is visually
+    // identifiable across every phase.
+    var iconHtml = (r.tag==='tag-vizyplan' || (r.url && r.url.indexOf('vizyplan.com')!==-1))
+      ? '<img src="/VizyPlan.png" alt="VizyPlan" class="rc-icon-img" />'
+      : '<span class="rc-icon">'+r.icon+'</span>';
+    return '<div class="res-card"><div class="res-card-inner"><div class="rc-top">'+iconHtml+'<span class="rc-name">'+r.name+'</span><span class="rc-tag '+r.tag+'">'+r.tagLabel+'</span></div><p class="rc-desc">'+r.desc+'</p><a class="rc-link" href="'+r.url+'" target="_blank" rel="noopener">'+r.urlLabel+' &rarr;</a></div></div>';
+  }).join('')+'</div></div>';
+}
+
+function phaseAccordionsHtml(phases,blogs,rc){
+  let html='';
+  phases.forEach(function(p,i){
+    const id='ph-'+rc+'-'+i;
+    html+='<div class="phase-block'+(i===0?' open':'')+'" id="'+id+'"><div class="phase-header" onclick="toggleBlock(\''+id+'\')"><div class="phase-icon">'+p.icon+'</div><div class="phase-title-wrap"><div class="phase-title">'+p.title+'</div><div class="phase-subtitle">'+p.sub+'</div></div><div class="phase-chev">&#9660;</div></div><div class="phase-body"><div class="content-section"><h5>Common Services &amp; Evaluations</h5><div class="pill-list">'+p.services.map(function(s){return '<span class="pill">'+s+'</span>';}).join('')+'</div></div><div class="content-section"><h5>Therapies to Know About</h5><div class="pill-list">'+p.therapies.map(function(t){return '<span class="pill amber">'+t+'</span>';}).join('')+'</div></div><div class="content-section"><h5>Your Rights in This Phase</h5><div class="pill-list">'+p.rights.map(function(r){return '<span class="pill slate">'+r+'</span>';}).join('')+'</div></div><div class="tip-box"><strong>Parent-to-Parent Tip:</strong> '+p.tip+'</div></div></div>';
+  });
+  html+=blogLinksHtml(blogs);
+  return html;
+}
+
+function behavioralHtml(phaseKey,rc){
+  const note=phaseNotes[phaseKey]||phaseNotes.general;
+  let html='<div class="behavioral-section"><div class="behavioral-header"><h4>Behaviors, Sensory &amp; Daily Challenges</h4><span class="bh-tag">Every Phase</span></div><p class="b-phase-note">'+note+'</p><div class="b-grid">';
+  bData.forEach(function(b){
+    const id='bc-'+rc+'-'+b.key;
+    html+='<div class="b-card" id="'+id+'"><div class="b-card-header" onclick="toggleBlock(\''+id+'\')"><span class="b-icon">'+b.icon+'</span><span class="b-title">'+b.title+'</span><span class="b-chev">&#9660;</span></div><div class="b-card-body"><ul>'+b.what.map(function(w){return '<li>'+w+'</li>';}).join('')+'</ul><div class="b-mitigate"><strong>Ways to Help</strong><ul>'+b.mitigate.map(function(m){return '<li>'+m+'</li>';}).join('')+'</ul></div>'+blogLinksHtml(b.blogs)+'</div></div>';
+  });
+  const docId='doc-'+rc;
+  const steps=[
+    ['Log the pattern, not just the event','Note: time of day, what preceded it, duration, intensity 1-5, and what helped. Do this for 2 weeks minimum.'],
+    ['Bring data, not descriptions','"4-6 meltdowns per week, mostly 3-5pm after school, 20-40 minutes" opens diagnostic doors. General descriptions do not.'],
+    ['Use video','A 30-second clip tells your doctor more than five minutes of verbal description. Most will welcome it.'],
+    ['Ask for specific referrals','"Should we see an OT?" is a direct question you can and should ask. Don\'t leave without a next step.'],
+    ['Note what you\'ve already tried','Prevents re-treading ground and shows the doctor what hasn\'t worked.'],
+    ['Weather patterns','Say: "Behavior is consistently harder before storms — I\'ve been tracking it. Can we discuss whether there is a physical component?" With data, you will not be dismissed.']
+  ];
+  html+='</div><div class="doc-box" id="'+docId+'"><div class="doc-box-header" onclick="toggleBlock(\''+docId+'\')"><span>What to Document &amp; How to Talk to Your Doctor</span><span class="d-chev">&#9660;</span></div><div class="doc-box-body"><p style="margin-bottom:14px;">Pediatricians have 15 minutes with you. Organized observations change what they can do for you.</p>'+steps.map(function(s,i){return '<div class="doc-step"><div class="doc-step-num">'+(i+1)+'</div><div class="doc-step-text"><strong>'+s[0]+'</strong>'+s[1]+'</div></div>';}).join('')+'<div style="margin-top:14px;padding:12px;background:var(--teal-pale);border-radius:8px;font-size:.8rem;color:var(--teal);line-height:1.55;"><strong>Template:</strong> Date | Time | What preceded it | What happened | Duration | What helped | Weather. Two weeks of this beats two years of memory.</div></div></div></div>';
+  return html;
+}
+
+function disclaimerHtml(){
+  return '<div class="disclaimer">This guide reflects general patterns across the U.S. autism service landscape. It is not legal or medical advice. Every child, school district, and state is different. Use this as a starting point. <strong>Autisable has been here for 18 years, and we are not going anywhere.</strong></div>';
+}
+
+// GENERATE
+function generatePhaseResults(){
+  const phase=sel.pc;
+  if(!phase){alert('Please select a life phase first.');return;}
+  const data=phaseData[phase];
+  const state=document.getElementById('state-phase').value;
+  renderCount++;const rc=renderCount;
+  let html='<div class="results-header"><h3>'+data.label+'</h3><span class="badge">'+data.badge+'</span></div>';
+  if(state) html+='<p style="font-size:.8rem;color:var(--slate-light);margin-bottom:16px;">Showing general guidance with <strong>'+state+'</strong>-specific resource links where available.</p>';
+  html+=phaseAccordionsHtml(data.phases,data.blogs,rc);
+  html+=resourcesHtml(data.resources,state);
+  html+=behavioralHtml(phase,rc);
+  html+=disclaimerHtml();
+  html+='<span class="reset-link" onclick="resetPanel(\'results-phase\')">&#8592; Start Over</span>';
+  const c=document.getElementById('results-phase');
+  c.innerHTML=html;c.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function generateAgeResults(){
+  const tier=sel.tc;
+  if(!tier){alert('Please select a support level.');return;}
+  const age=currentAge;
+  const state=document.getElementById('state-age').value;
+  let phase;
+  if(age<=2)phase='ei';else if(age<=5)phase='preschool';else if(age<=10)phase='elementary';else if(age<=13)phase='middle';else if(age<=17)phase='high';else phase='transition';
+  const data=phaseData[phase];
+  const tierLabels=['','requiring support','requiring substantial support','requiring very substantial support'];
+  const tierLabel=tierLabels[parseInt(tier)]||'';
+  renderCount++;const rc=renderCount;
+  let html='<div class="results-header"><h3>'+(age===0?'Birth':'Age '+age)+' &middot; Level '+tier+'</h3><span class="badge">Support Level '+tier+'</span></div>';
+  html+='<p style="font-size:.85rem;color:var(--slate-light);margin-bottom:20px;">Showing the <strong>'+data.label+'</strong> phase, support needs '+tierLabel+'. '+(state?'Resources include <strong>'+state+'</strong>-specific links.':'')+'</p>';
+  html+=phaseAccordionsHtml(data.phases,data.blogs,rc);
+  html+=resourcesHtml(data.resources,state);
+  html+=behavioralHtml(phase,rc);
+  html+=disclaimerHtml();
+  html+='<span class="reset-link" onclick="resetPanel(\'results-age\')">&#8592; Start Over</span>';
+  const c=document.getElementById('results-age');
+  c.innerHTML=html;c.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function generateDxResults(){
+  const dx=sel.dc;
+  if(!dx){alert('Please select your diagnosis stage.');return;}
+  const data=dxData[dx];
+  const state=document.getElementById('state-dx').value;
+  renderCount++;const rc=renderCount;
+  let html='<div class="results-header"><h3>'+data.label+'</h3><span class="badge">Your Stage</span></div>';
+  if(state) html+='<p style="font-size:.8rem;color:var(--slate-light);margin-bottom:16px;">General guidance with <strong>'+state+'</strong>-specific resource links where available.</p>';
+  data.steps.forEach(function(step,i){
+    const id='dxph-'+rc+'-'+i;
+    html+='<div class="phase-block'+(i===0?' open':'')+'" id="'+id+'"><div class="phase-header" onclick="toggleBlock(\''+id+'\')"><div class="phase-icon">'+step.icon+'</div><div class="phase-title-wrap"><div class="phase-title">'+step.title+'</div><div class="phase-subtitle">'+step.sub+'</div></div><div class="phase-chev">&#9660;</div></div><div class="phase-body"><div class="content-section"><div class="pill-list">'+step.items.map(function(r){return '<span class="pill slate">'+r+'</span>';}).join('')+'</div></div></div></div>';
+  });
+  html+=blogLinksHtml(data.blogs);
+  html+='<div class="tip-box"><strong>From the Autisable Community:</strong> '+data.tip+'</div>';
+  html+=resourcesHtml(data.resources,state);
+  html+=behavioralHtml('general',rc);
+  html+=disclaimerHtml();
+  html+='<span class="reset-link" onclick="resetPanel(\'results-dx\')">&#8592; Start Over</span>';
+  const c=document.getElementById('results-dx');
+  c.innerHTML=html;c.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function toggleBlock(id){const el=document.getElementById(id);if(el)el.classList.toggle('open');}
+function resetPanel(id){document.getElementById(id).innerHTML='';window.scrollTo({top:0,behavior:'smooth'});}

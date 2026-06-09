@@ -13,7 +13,7 @@ const fallbackNavItems = [
   { label: "Podcasts", href: "/podcasts", external: false },
   { label: "Music", href: "/music", external: false },
   { label: "Community", href: "/community", external: false },
-  { label: "Roadmap", href: "/family-roadmap.html", external: true },
+  { label: "Roadmap", href: "/family-roadmap", external: false },
   { label: "Resources", href: "/resources", external: false },
   { label: "About", href: "/about", external: false },
   { label: "Contact", href: "/contact", external: false },
