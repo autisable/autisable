@@ -381,7 +381,7 @@ function generatePhaseResults(){
   html+=disclaimerHtml();
   html+='<span class="reset-link" onclick="resetPanel(\'results-phase\')">&#8592; Start Over</span>';
   const c=document.getElementById('results-phase');
-  c.innerHTML=html;c.scrollIntoView({behavior:'smooth',block:'start'});
+  c.innerHTML=html;requestScrollToElement(c);
 }
 
 function generateAgeResults(){
@@ -403,7 +403,7 @@ function generateAgeResults(){
   html+=disclaimerHtml();
   html+='<span class="reset-link" onclick="resetPanel(\'results-age\')">&#8592; Start Over</span>';
   const c=document.getElementById('results-age');
-  c.innerHTML=html;c.scrollIntoView({behavior:'smooth',block:'start'});
+  c.innerHTML=html;requestScrollToElement(c);
 }
 
 function generateDxResults(){
@@ -425,8 +425,23 @@ function generateDxResults(){
   html+=disclaimerHtml();
   html+='<span class="reset-link" onclick="resetPanel(\'results-dx\')">&#8592; Start Over</span>';
   const c=document.getElementById('results-dx');
-  c.innerHTML=html;c.scrollIntoView({behavior:'smooth',block:'start'});
+  c.innerHTML=html;requestScrollToElement(c);
 }
 
 function toggleBlock(id){const el=document.getElementById(id);if(el)el.classList.toggle('open');}
-function resetPanel(id){document.getElementById(id).innerHTML='';window.scrollTo({top:0,behavior:'smooth'});}
+function resetPanel(id){document.getElementById(id).innerHTML='';requestScrollToTop();}
+
+// ── PARENT-SCROLL HELPERS ─────────────────────────────────────────────
+// We're loaded inside an iframe whose own document has no scroll
+// (parent sizes it to content). window.scrollTo/scrollIntoView inside
+// here do nothing visible. Ask the wrapper page to scroll instead.
+function requestScrollToElement(el){
+  if(!el) return;
+  try {
+    var y = el.getBoundingClientRect().top + (window.scrollY || window.pageYOffset || 0);
+    parent.postMessage({ source:'family-roadmap', scrollToY: y }, '*');
+  } catch(_) {}
+}
+function requestScrollToTop(){
+  try { parent.postMessage({ source:'family-roadmap', scrollToY: 0 }, '*'); } catch(_) {}
+}

@@ -20,12 +20,24 @@ export default function FamilyRoadmapPage() {
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
       if (
-        e.data &&
-        typeof e.data === "object" &&
-        (e.data as { source?: string }).source === "family-roadmap"
+        !e.data ||
+        typeof e.data !== "object" ||
+        (e.data as { source?: string }).source !== "family-roadmap"
       ) {
-        const h = Number((e.data as { height?: number }).height);
-        if (Number.isFinite(h) && h > 0) setHeight(h);
+        return;
+      }
+      const data = e.data as { height?: number; scrollToY?: number };
+      const h = Number(data.height);
+      if (Number.isFinite(h) && h > 0) setHeight(h);
+
+      // Scroll requests come from the iframe whenever a result renders
+      // (parent should land at the result header) or the user clicks
+      // Start Over (parent should land at the picker). The Y the
+      // playbook posts is relative to its own document; translate it
+      // by the iframe's offset to get the parent-document Y.
+      if (typeof data.scrollToY === "number" && iframeRef.current) {
+        const offset = iframeRef.current.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({ top: offset + data.scrollToY, behavior: "smooth" });
       }
     };
     window.addEventListener("message", onMessage);
