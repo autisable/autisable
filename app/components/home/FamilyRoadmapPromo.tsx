@@ -8,66 +8,66 @@ import Link from "next/link";
 
 export default function FamilyRoadmapPromo() {
   return (
-    <section className="py-12 bg-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-8 sm:py-10 bg-white">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <Link
           href="/family-roadmap.html"
           target="_blank"
           rel="noopener noreferrer"
-          className="group relative block overflow-hidden rounded-3xl bg-gradient-to-br from-brand-blue-dark via-brand-blue to-brand-blue/90 p-8 sm:p-12 shadow-xl shadow-brand-blue/15 transition-shadow hover:shadow-2xl hover:shadow-brand-blue/25"
+          className="group relative block overflow-hidden rounded-2xl bg-gradient-to-br from-brand-blue-dark via-brand-blue to-brand-blue/95 px-6 py-7 sm:px-10 sm:py-8 shadow-lg shadow-brand-blue/15 transition-shadow hover:shadow-xl hover:shadow-brand-blue/20"
         >
-          {/* Decorative orbs — same idiom the playbook itself uses,
-              keeps the two surfaces feeling related. */}
-          <div className="pointer-events-none absolute -top-20 -right-16 h-72 w-72 rounded-full bg-brand-orange/15 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -left-20 h-80 w-80 rounded-full bg-white/10 blur-3xl" />
+          {/* Decorative orbs — subtle, sized to not inflate card height. */}
+          <div className="pointer-events-none absolute -top-12 -right-10 h-44 w-44 rounded-full bg-brand-orange/15 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-16 -left-12 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
 
-          <div className="relative grid items-center gap-8 md:grid-cols-[1fr,auto]">
-            <div>
-              <span className="inline-block rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-white/90 backdrop-blur-sm">
+          <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:gap-8">
+            <div className="md:flex-1">
+              <span className="inline-block rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/90 backdrop-blur-sm">
                 Free Interactive Tool
               </span>
-              <h2 className="mt-4 font-serif text-3xl font-bold leading-tight text-white sm:text-4xl lg:text-[2.5rem]">
+              <h2 className="mt-2.5 font-serif text-2xl font-bold leading-tight text-white sm:text-3xl">
                 The Autisable Family Roadmap
               </h2>
-              <p className="mt-3 max-w-xl text-base leading-relaxed text-white/85 sm:text-lg">
-                Find what&apos;s next for your family — pick by life phase, age and
-                support level, or diagnosis stage. Step-by-step guidance built
-                from the community.
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/85 sm:text-base">
+                Find what&apos;s next for your family — pick by life phase, age
+                and support level, or diagnosis stage. Step-by-step guidance
+                built from the community.
               </p>
-              <div className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-brand-blue-dark shadow-md transition-transform group-hover:-translate-y-0.5">
-                Open the Roadmap
-                <svg
-                  className="h-4 w-4"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  strokeWidth={2.5}
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            <div className="hidden md:flex md:flex-col md:items-end md:gap-3">
-              {/* Three "entry mode" tiles mirroring the playbook's
-                  three tabs — visual preview of what's inside. */}
-              {[
-                { label: "Life phase", icon: "🌱" },
-                { label: "Age + support", icon: "🧭" },
-                { label: "Diagnosis stage", icon: "🩺" },
-              ].map((tile) => (
-                <div
-                  key={tile.label}
-                  className="flex items-center gap-3 rounded-xl bg-white/10 px-4 py-2.5 text-white/95 backdrop-blur-sm"
-                >
-                  <span className="text-xl leading-none">{tile.icon}</span>
-                  <span className="text-sm font-medium">{tile.label}</span>
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-brand-blue-dark shadow-md transition-transform group-hover:-translate-y-0.5">
+                  Open the Roadmap
+                  <svg
+                    className="h-3.5 w-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={2.5}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"
+                    />
+                  </svg>
+                </span>
+                {/* Three "entry mode" tiles, inlined so the card stays
+                    short regardless of viewport width. */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[
+                    { label: "Life phase", icon: "🌱" },
+                    { label: "Age + support", icon: "🧭" },
+                    { label: "Diagnosis stage", icon: "🩺" },
+                  ].map((tile) => (
+                    <span
+                      key={tile.label}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-xs font-medium text-white/95 backdrop-blur-sm"
+                    >
+                      <span className="text-sm leading-none">{tile.icon}</span>
+                      {tile.label}
+                    </span>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </Link>
