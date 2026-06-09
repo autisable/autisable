@@ -4,6 +4,7 @@
 export const revalidate = 60;
 
 import Hero from "./components/home/Hero";
+import FamilyRoadmapPromo from "./components/home/FamilyRoadmapPromo";
 import FeaturedStory from "./components/home/FeaturedStory";
 import ContentPillars from "./components/home/ContentPillars";
 import LatestPosts from "./components/home/LatestPosts";
@@ -16,6 +17,7 @@ export default function Home() {
   return (
     <>
       <Hero />
+      <FamilyRoadmapPromo />
       <FeaturedStory />
       <ContentPillars />
       <NewsletterSection />
