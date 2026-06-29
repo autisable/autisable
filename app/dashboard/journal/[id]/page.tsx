@@ -135,96 +135,38 @@ export default function EditJournalPage() {
     if (!entry || !userId || locked) return;
     setSubmitting(true);
 
-    // 1. Save current edits
-    await supabase
-      .from("journal_entries")
-      .update({
+    // All writes happen server-side via /api/journal/submit. The old
+    // browser-side blog_posts.insert was silently rejected by RLS
+    // (admin-only INSERT policy) and the member saw "submitted" while
+    // no row was ever created — Joel reported that as data loss.
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setSubmitting(false);
+      alert("Your session expired. Refresh and sign in again to submit.");
+      return;
+    }
+
+    const res = await fetch("/api/journal/submit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        entryId: entry.id,
         title: title.trim() || "Untitled",
         content: content.trim(),
         visibility,
-        submission_status: "submitted",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", entry.id);
-
-    // 2. Build a slug + create blog_posts row in pending_review for editors
-    const { data: profile } = await supabase
-      .from("user_profiles")
-      .select("display_name")
-      .eq("id", userId)
-      .single();
-
-    // Resolve (and if necessary create) the authors row that backs this
-    // member's byline. Linking via user_profile_id is preferred over
-    // display_name matching because members can rename themselves and
-    // the link survives. If no row exists yet for this member, create
-    // one — that way the very first submission produces a working
-    // byline without an editor having to add the author manually.
-    let authorId: string | null = null;
-    if (profile?.display_name) {
-      // 1. Prefer the row already linked to this user_profile.
-      const byLink = await supabase
-        .from("authors")
-        .select("id")
-        .eq("user_profile_id", userId)
-        .maybeSingle();
-      if (byLink.data) {
-        authorId = byLink.data.id;
-      } else {
-        // 2. Otherwise look for a name match and link it to this profile.
-        const byName = await supabase
-          .from("authors")
-          .select("id, user_profile_id")
-          .eq("display_name", profile.display_name)
-          .maybeSingle();
-        if (byName.data) {
-          authorId = byName.data.id;
-          if (!byName.data.user_profile_id) {
-            await supabase
-              .from("authors")
-              .update({ user_profile_id: userId })
-              .eq("id", byName.data.id);
-          }
-        } else {
-          // 3. No author row at all — create one linked to this profile.
-          const created = await supabase
-            .from("authors")
-            .insert({ display_name: profile.display_name, user_profile_id: userId })
-            .select("id")
-            .single();
-          if (created.data) authorId = created.data.id;
-        }
-      }
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setSubmitting(false);
+      alert(`Submit failed: ${data.error || `HTTP ${res.status}`}`);
+      return;
     }
 
-    const baseSlug = (title.trim() || "Untitled")
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .slice(0, 80);
-    const uniqueSlug = baseSlug + "-" + Date.now().toString(36);
-
-    const stripped = content.replace(/<[^>]*>/g, "").trim();
-
-    await supabase.from("blog_posts").insert({
-      title: title.trim() || "Untitled",
-      slug: uniqueSlug,
-      content: content.trim(),
-      excerpt: stripped.slice(0, 280),
-      category: "Bloggers",
-      date: new Date().toISOString(),
-      is_published: false,
-      draft_status: "pending_review",
-      is_syndicated: false,
-      author_id: authorId,
-      author_name: profile?.display_name || null,
-      // Track who submitted this — used by M6 to route approve/reject/published emails
-      submitted_by_user_id: userId,
-      // L7: link back to source so editorial decisions can sync submission_status
-      source_journal_id: entry.id,
-    });
-
-    // 3. Send acknowledgement email — fire-and-forget; don't block on it
+    // Acknowledgement email — fire-and-forget; don't block on it.
     void fetch("/api/notifications/journal-acknowledgement", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

@@ -235,13 +235,23 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
         router.push(`/admin/posts/${data.id}`);
       }
     } else {
-      const { error } = await supabase
+      // .select("id") forces a real response — without it, a silent
+      // RLS rejection returns {data:null, error:null} and the editor
+      // says "Saved!" while the row never changed. This is the same
+      // pattern fix we applied on /admin/products and /admin/authors.
+      // Joel ran into it specifically trying to toggle is_featured.
+      const { data, error } = await supabase
         .from("blog_posts")
         .update(payload)
-        .eq("id", post.id);
+        .eq("id", post.id)
+        .select("id");
 
       if (error) {
         alert("Error saving: " + error.message);
+      } else if (!data || data.length === 0) {
+        alert(
+          "Save didn't take — no rows updated. RLS may be blocking the write; check that you're logged in as an admin."
+        );
       } else {
         setSaved(true);
         setPost((prev) => ({ ...prev, ...payload, slug }));
