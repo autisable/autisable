@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/app/lib/supabase";
 import { requireAdmin } from "@/app/lib/adminAuth";
 import { isRole } from "@/app/lib/roles";
+import { ensureOwnerFollowsMember } from "@/app/lib/autoFollow";
 
 export const runtime = "nodejs";
 
@@ -82,6 +83,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (error) {
     console.error("[admin/members PATCH] update failed:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Auto-follow rule: when a member transitions to active, ensure
+  // Joel (the owner) is in a mutual follow with them. Fire-and-forget
+  // semantics — a failure here shouldn't block approval, since the
+  // admin already saw it succeed in the DB. ensureOwnerFollowsMember
+  // is idempotent, so reactivation from suspended just no-ops.
+  if (updates.status === "active") {
+    void ensureOwnerFollowsMember(id).catch((e) => {
+      console.error("[admin/members PATCH] auto-follow failed", e);
+    });
   }
 
   return NextResponse.json({ ok: true, ...updates });

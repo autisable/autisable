@@ -31,6 +31,30 @@ export default function AdminMembersPage() {
   // without one row's spinner blocking the rest of the table.
   const [savingId, setSavingId] = useState<string | null>(null);
   const [errorById, setErrorById] = useState<Map<string, string>>(new Map());
+  const [backfillStatus, setBackfillStatus] = useState<string | null>(null);
+  const [backfillRunning, setBackfillRunning] = useState(false);
+
+  const runFollowBackfill = async () => {
+    if (backfillRunning) return;
+    if (!confirm("Make the site owner mutual-follow every active member? Safe to re-run.")) return;
+    setBackfillRunning(true);
+    setBackfillStatus("Running...");
+    try {
+      const res = await adminFetch("/api/admin/auto-follow-backfill", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setBackfillStatus(`Error: ${data.error || `HTTP ${res.status}`}`);
+      } else {
+        setBackfillStatus(
+          `Done — synced ${data.processed} member(s), ${data.failures} failure(s).`
+        );
+      }
+    } catch (e) {
+      setBackfillStatus(`Error: ${(e as Error).message}`);
+    } finally {
+      setBackfillRunning(false);
+    }
+  };
 
   const loadMembers = async (status: string) => {
     setLoading(true);
@@ -110,7 +134,18 @@ export default function AdminMembersPage() {
           >
             Pending Approval
           </button>
+          <button
+            onClick={runFollowBackfill}
+            disabled={backfillRunning}
+            className="ml-auto px-4 py-2 rounded-lg text-sm font-medium bg-white text-zinc-600 border border-zinc-200 hover:bg-zinc-50 disabled:opacity-50"
+            title="One-shot: ensures the owner is in a mutual follow with every active member. Idempotent."
+          >
+            {backfillRunning ? "Syncing..." : "Sync owner follows"}
+          </button>
         </div>
+        {backfillStatus && (
+          <p className="mb-4 text-sm text-zinc-600">{backfillStatus}</p>
+        )}
 
         {/* Compact role legend so admins know what each role grants without
             having to remember or click into each one */}
