@@ -2,9 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getSupabase } from "@/app/lib/supabase-browser";
-
-const supabase = getSupabase();
+import { adminFetch } from "@/app/lib/adminFetch";
 
 interface Message {
   id: string;
@@ -50,36 +48,25 @@ export default function AdminContactMessagesPage() {
   const [memberByEmail, setMemberByEmail] = useState<Map<string, MemberMatch>>(new Map());
 
   const loadMessages = useCallback(async () => {
-    if (!supabase) return;
     setLoading(true);
-
-    let q = supabase
-      .from("contact_messages")
-      .select("id, first_name, last_name, email, reason, message, created_at, resolved_at")
-      .order("created_at", { ascending: false })
-      .limit(200);
-
-    if (tab === "open") q = q.is("resolved_at", null);
-    if (tab === "resolved") q = q.not("resolved_at", "is", null);
-    if (tab === "author") q = q.in("reason", ["author_post_removal", "author_account_removal"]);
-
-    const { data } = await q;
-    const msgs: Message[] = data || [];
+    const res = await adminFetch(`/api/admin/contact-messages?tab=${tab}`);
+    if (!res.ok) {
+      setMessages([]);
+      setMemberByEmail(new Map());
+      setLoading(false);
+      return;
+    }
+    const data = await res.json();
+    const msgs: Message[] = data.messages || [];
     setMessages(msgs);
 
-    // Look up which submitters are existing members so the admin sees the
-    // overlap at a glance (esp. for author removal requests).
-    const emails = [...new Set(msgs.map((m) => m.email.toLowerCase()))];
-    if (emails.length > 0) {
-      // user_profiles doesn't store email directly; emails live in auth.users.
-      // From the browser we can only match by an admin RPC or by display_name
-      // proxy. Skipping auth.users join here on purpose — this view is best-
-      // effort and the admin can always click into a member dashboard manually.
-      // Future improvement: a `/api/admin/member-by-email` endpoint that uses
-      // service-role to query auth.users and returns the matched profiles.
-      setMemberByEmail(new Map());
+    // memberByEmail comes back as a plain object — convert to Map for the
+    // existing render path. user_profiles.email is what the server joins on.
+    const map = new Map<string, MemberMatch>();
+    for (const [email, m] of Object.entries(data.memberByEmail || {})) {
+      map.set(email, m as MemberMatch);
     }
-
+    setMemberByEmail(map);
     setLoading(false);
   }, [tab]);
 
@@ -94,26 +81,20 @@ export default function AdminContactMessagesPage() {
   }, [messages]);
 
   const handleResolve = async (id: string) => {
-    if (!supabase) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase
-      .from("contact_messages")
-      .update({ resolved_at: new Date().toISOString(), resolved_by_user_id: user.id })
-      .eq("id", id);
-    setMessages((prev) => prev.filter((m) => m.id !== id || tab !== "open"));
-    if (tab === "open" || tab === "author") {
-      // Refetch so the resolved item drops out of the open/author lists
-      void loadMessages();
-    }
+    await adminFetch(`/api/admin/contact-messages/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resolve: true }),
+    });
+    void loadMessages();
   };
 
   const handleReopen = async (id: string) => {
-    if (!supabase) return;
-    await supabase
-      .from("contact_messages")
-      .update({ resolved_at: null, resolved_by_user_id: null })
-      .eq("id", id);
+    await adminFetch(`/api/admin/contact-messages/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resolve: false }),
+    });
     void loadMessages();
   };
 
