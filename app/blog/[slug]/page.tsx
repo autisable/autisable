@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/app/lib/supabase";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import BlogPostClient from "@/app/components/blog/BlogPostClient";
-import { pickAffiliate, pickAffiliates } from "@/app/lib/pickAffiliate";
+import { pickAffiliate, pickAffiliates, pickAuthorSponsor } from "@/app/lib/pickAffiliate";
 import { pickProducts } from "@/app/lib/pickProducts";
 import { resolveAuthor } from "@/app/lib/resolveAuthor";
 
@@ -199,10 +199,15 @@ export default async function BlogPostPage({ params }: Props) {
   // One affiliate for the bottom slot, plus up to three distinct inline
   // affiliates for paragraph-anchored placements. BlogPostClient decides
   // how many to actually render based on the article's paragraph count.
-  const [affiliate, inlineAffiliates, inlineProducts] = await Promise.all([
+  // Author-locked sponsor: if this post is bylined to VizyPlan,
+  // LegalShield, or APM, surface their banner in a dedicated slot
+  // regardless of the rotating category/tag picks.
+  const authorDisplayName = author?.display_name || post.author_name || null;
+  const [affiliate, inlineAffiliates, inlineProducts, authorSponsor] = await Promise.all([
     pickAffiliate("sidebar", post.category || null, postTags),
     pickAffiliates("sidebar", post.category || null, postTags, 2),
     pickProducts(post.category || null, postTags, 3),
+    pickAuthorSponsor(authorDisplayName),
   ]);
 
   return (
@@ -222,6 +227,7 @@ export default async function BlogPostPage({ params }: Props) {
         affiliate={affiliate}
         inlineAffiliates={inlineAffiliates}
         inlineProducts={inlineProducts}
+        authorSponsor={authorSponsor}
       />
     </>
   );

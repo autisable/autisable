@@ -114,3 +114,39 @@ export async function pickAffiliates(
   }
   return eligible.slice(0, count) as Affiliate[];
 }
+
+/**
+ * Author-locked sponsor lookup. For the three launch partners that
+ * also write on Autisable (VizyPlan, LegalShield, Autism Parenting
+ * Magazine), every post bylined to them gets a guaranteed banner slot
+ * regardless of the category/tag filters that govern the rotating
+ * affiliate picks. Per Joel's Tier-2 brief: "This slot is reserved
+ * and not affected by category/tag ad logic."
+ *
+ * Match is by case-insensitive author display_name → affiliate slug
+ * using a small static map. Hardcoded on purpose — the three brands
+ * are baked into the affiliates seed data and adding a generic
+ * mapping table would be over-engineering for a fixed roster.
+ *
+ * Returns null if the author isn't one of the locked partners, or if
+ * the matching affiliate is inactive / not found.
+ */
+const AUTHOR_NAME_TO_AFFILIATE_SLUG: Record<string, string> = {
+  "vizyplan": "vizyplan",
+  "legalshield": "legalshield",
+  "autism parenting magazine": "apm",
+};
+
+export async function pickAuthorSponsor(authorName: string | null): Promise<Affiliate | null> {
+  if (!authorName || !supabaseAdmin) return null;
+  const slug = AUTHOR_NAME_TO_AFFILIATE_SLUG[authorName.trim().toLowerCase()];
+  if (!slug) return null;
+
+  const { data } = await supabaseAdmin
+    .from("affiliates")
+    .select("id, slug, name, tagline, cta_label, click_url, banner_300x250_url, banner_468x60_url")
+    .eq("slug", slug)
+    .eq("is_active", true)
+    .maybeSingle();
+  return (data as Affiliate | null) || null;
+}

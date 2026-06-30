@@ -58,6 +58,7 @@ interface Props {
   affiliate?: Affiliate | null;
   inlineAffiliates?: Affiliate[];
   inlineProducts?: Product[];
+  authorSponsor?: Affiliate | null;
 }
 
 export default function BlogPostClient({
@@ -67,6 +68,7 @@ export default function BlogPostClient({
   affiliate,
   inlineAffiliates = [],
   inlineProducts = [],
+  authorSponsor = null,
 }: Props) {
   // Paragraph-anchored ad insertion. Splitting happens once per render via
   // useMemo so we don't re-segment on unrelated state changes (popup open,
@@ -197,6 +199,27 @@ export default function BlogPostClient({
               );
             });
           })()}
+        </div>
+      )}
+
+      {/* Author-locked sponsor slot — guaranteed for posts bylined to
+          VizyPlan, LegalShield, or APM, per the Tier-2 brief. Lives in
+          its own labelled block so it reads as "this author's sponsor"
+          rather than competing with the rotating affiliate beneath it. */}
+      {authorSponsor && (
+        <div className="mt-10 pt-8 border-t border-zinc-100">
+          <p className="text-[10px] uppercase tracking-wider text-zinc-400 mb-3 text-center font-medium">
+            Sponsored by this author
+          </p>
+          <div className="flex justify-center">
+            <TrackedAdSlot
+              adId={authorSponsor.id}
+              adType="affiliate"
+              pagePath={`/blog/${post.slug}/`}
+            >
+              <AffiliateBanner affiliate={authorSponsor} size="300x250" />
+            </TrackedAdSlot>
+          </div>
         </div>
       )}
 

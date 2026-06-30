@@ -286,6 +286,13 @@ SET click_url = 'https://members.autismparentingmagazine.com/dap/a/?a=62040&p=Au
     tag_filter = ARRAY['Parenting and Autism']
 WHERE slug = 'apm';
 
+-- VizyPlan sponsor banner — used by the author-locked slot on posts
+-- bylined to "VizyPlan" (see pickAuthorSponsor). Asset lives in
+-- public/vizyplan-ad-floating-cards.png.
+UPDATE affiliates
+SET banner_300x250_url = '/vizyplan-ad-floating-cards.png'
+WHERE slug = 'vizyplan';
+
 -- Newsletter Subscribers
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
