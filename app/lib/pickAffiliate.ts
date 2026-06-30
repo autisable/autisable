@@ -116,37 +116,28 @@ export async function pickAffiliates(
 }
 
 /**
- * Author-locked sponsor lookup. For the three launch partners that
- * also write on Autisable (VizyPlan, LegalShield, Autism Parenting
- * Magazine), every post bylined to them gets a guaranteed banner slot
- * regardless of the category/tag filters that govern the rotating
- * affiliate picks. Per Joel's Tier-2 brief: "This slot is reserved
- * and not affected by category/tag ad logic."
+ * Launch partners shown at the bottom of every blog post, regardless
+ * of author / category / tags. Per Joel's directive: surface VizyPlan,
+ * LegalShield, and Autism Parenting Magazine as a fixed three-up row
+ * so every reader sees them every time.
  *
- * Match is by case-insensitive author display_name → affiliate slug
- * using a small static map. Hardcoded on purpose — the three brands
- * are baked into the affiliates seed data and adding a generic
- * mapping table would be over-engineering for a fixed roster.
- *
- * Returns null if the author isn't one of the locked partners, or if
- * the matching affiliate is inactive / not found.
+ * Returned in slug order (deterministic) so the layout doesn't shuffle
+ * between renders the way the rotating affiliate picks do. Missing
+ * partners (inactive row, or someone deactivated a seed entry) are
+ * simply dropped from the array — the renderer handles 0/1/2/3 cards.
  */
-const AUTHOR_NAME_TO_AFFILIATE_SLUG: Record<string, string> = {
-  "vizyplan": "vizyplan",
-  "legalshield": "legalshield",
-  "autism parenting magazine": "apm",
-};
+const PARTNER_SLUGS = ["vizyplan", "legalshield", "apm"] as const;
 
-export async function pickAuthorSponsor(authorName: string | null): Promise<Affiliate | null> {
-  if (!authorName || !supabaseAdmin) return null;
-  const slug = AUTHOR_NAME_TO_AFFILIATE_SLUG[authorName.trim().toLowerCase()];
-  if (!slug) return null;
-
+export async function getPartnerSponsors(): Promise<Affiliate[]> {
+  if (!supabaseAdmin) return [];
   const { data } = await supabaseAdmin
     .from("affiliates")
     .select("id, slug, name, tagline, cta_label, click_url, banner_300x250_url, banner_468x60_url")
-    .eq("slug", slug)
-    .eq("is_active", true)
-    .maybeSingle();
-  return (data as Affiliate | null) || null;
+    .in("slug", PARTNER_SLUGS as unknown as string[])
+    .eq("is_active", true);
+  if (!data) return [];
+  // Order by the canonical PARTNER_SLUGS sequence so VizyPlan / LegalShield /
+  // APM render in the same positions on every visit.
+  const bySlug = new Map(data.map((d) => [d.slug as string, d as Affiliate]));
+  return PARTNER_SLUGS.map((s) => bySlug.get(s)).filter(Boolean) as Affiliate[];
 }

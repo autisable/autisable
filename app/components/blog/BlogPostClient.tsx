@@ -58,7 +58,7 @@ interface Props {
   affiliate?: Affiliate | null;
   inlineAffiliates?: Affiliate[];
   inlineProducts?: Product[];
-  authorSponsor?: Affiliate | null;
+  partnerSponsors?: Affiliate[];
 }
 
 export default function BlogPostClient({
@@ -68,7 +68,7 @@ export default function BlogPostClient({
   affiliate,
   inlineAffiliates = [],
   inlineProducts = [],
-  authorSponsor = null,
+  partnerSponsors = [],
 }: Props) {
   // Paragraph-anchored ad insertion. Splitting happens once per render via
   // useMemo so we don't re-segment on unrelated state changes (popup open,
@@ -202,27 +202,6 @@ export default function BlogPostClient({
         </div>
       )}
 
-      {/* Author-locked sponsor slot — guaranteed for posts bylined to
-          VizyPlan, LegalShield, or APM, per the Tier-2 brief. Lives in
-          its own labelled block so it reads as "this author's sponsor"
-          rather than competing with the rotating affiliate beneath it. */}
-      {authorSponsor && (
-        <div className="mt-10 pt-8 border-t border-zinc-100">
-          <p className="text-[10px] uppercase tracking-wider text-zinc-400 mb-3 text-center font-medium">
-            Sponsored by this author
-          </p>
-          <div className="flex justify-center">
-            <TrackedAdSlot
-              adId={authorSponsor.id}
-              adType="affiliate"
-              pagePath={`/blog/${post.slug}/`}
-            >
-              <AffiliateBanner affiliate={authorSponsor} size="300x250" />
-            </TrackedAdSlot>
-          </div>
-        </div>
-      )}
-
       {/* Affiliate slot — sits between the article and the author bio so it's
           visible without interrupting the read. Only renders if there's an
           eligible affiliate for this category. */}
@@ -326,6 +305,29 @@ export default function BlogPostClient({
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Launch Partners — always shown below the author bio so every
+          reader sees VizyPlan, LegalShield, and Autism Parenting Magazine
+          regardless of post category, tags, or byline. */}
+      {partnerSponsors.length > 0 && (
+        <div className="mt-12 pt-10 border-t border-zinc-200">
+          <p className="text-xs uppercase tracking-widest text-zinc-400 mb-5 text-center font-medium">
+            Our Partners
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 justify-items-center">
+            {partnerSponsors.map((p) => (
+              <TrackedAdSlot
+                key={p.id}
+                adId={p.id}
+                adType="affiliate"
+                pagePath={`/blog/${post.slug}/`}
+              >
+                <AffiliateBanner affiliate={p} size="300x250" />
+              </TrackedAdSlot>
+            ))}
           </div>
         </div>
       )}
