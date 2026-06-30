@@ -311,7 +311,10 @@ export default function BlogPostClient({
 
       {/* Launch Partners — always shown below the author bio so every
           reader sees VizyPlan, LegalShield, and Autism Parenting Magazine
-          regardless of post category, tags, or byline. */}
+          regardless of post category, tags, or byline. Renders inline
+          (not via AffiliateBanner) so we can use a 300×300 square slot
+          with object-contain — VizyPlan's 4:5 portrait asset would get
+          cropped in the standard 300×250 medium-rectangle treatment. */}
       {partnerSponsors.length > 0 && (
         <div className="mt-12 pt-10 border-t border-zinc-200">
           <p className="text-xs uppercase tracking-widest text-zinc-400 mb-5 text-center font-medium">
@@ -325,7 +328,45 @@ export default function BlogPostClient({
                 adType="affiliate"
                 pagePath={`/blog/${post.slug}/`}
               >
-                <AffiliateBanner affiliate={p} size="300x250" />
+                <a
+                  href={p.click_url}
+                  target="_blank"
+                  rel="sponsored noopener noreferrer"
+                  className="block group not-prose"
+                  aria-label={`Sponsored: ${p.name}`}
+                  data-affiliate-slug={p.slug}
+                >
+                  <div className="text-[10px] uppercase tracking-wider text-zinc-400 mb-1 font-medium">
+                    Sponsored
+                  </div>
+                  {p.banner_300x250_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={p.banner_300x250_url}
+                      alt={p.name}
+                      width={300}
+                      height={300}
+                      className="rounded-lg border border-zinc-100 bg-zinc-50 group-hover:shadow-md transition-shadow object-contain"
+                      style={{ width: 300, height: 300 }}
+                    />
+                  ) : (
+                    // Text-card fallback when no banner uploaded yet.
+                    <div
+                      className="flex flex-col justify-between p-5 rounded-xl border border-brand-blue/20 bg-gradient-to-br from-brand-blue/15 to-brand-blue/5 group-hover:shadow-md transition-shadow"
+                      style={{ width: 300, height: 300 }}
+                    >
+                      <div>
+                        <p className="text-base font-bold text-zinc-900 mb-2">{p.name}</p>
+                        {p.tagline && (
+                          <p className="text-sm text-zinc-700 leading-snug">{p.tagline}</p>
+                        )}
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-zinc-200 rounded-lg text-xs font-semibold text-zinc-900 self-start group-hover:border-zinc-400 transition-colors">
+                        {p.cta_label || "Learn more"} →
+                      </span>
+                    </div>
+                  )}
+                </a>
               </TrackedAdSlot>
             ))}
           </div>
