@@ -16,6 +16,16 @@ interface Member {
   created_at: string;
 }
 
+interface AuthorLite {
+  id: string;
+  display_name: string;
+  user_profile_id: string | null;
+}
+
+// Sentinel for the "create a new authors row for this member" option in the
+// byline dropdown — kept out of the uuid value space.
+const CREATE_AUTHOR = "__create__";
+
 const STATUS_OPTIONS = [
   { value: "pending_approval", label: "Pending" },
   { value: "active", label: "Active" },
@@ -33,6 +43,108 @@ export default function AdminMembersPage() {
   const [errorById, setErrorById] = useState<Map<string, string>>(new Map());
   const [backfillStatus, setBackfillStatus] = useState<string | null>(null);
   const [backfillRunning, setBackfillRunning] = useState(false);
+  // Author byline linking. authors.user_profile_id is the source of truth;
+  // this page just offers the member-side view of the same link that
+  // /admin/authors manages from the author side.
+  const [authors, setAuthors] = useState<AuthorLite[]>([]);
+  const [linkSavingId, setLinkSavingId] = useState<string | null>(null);
+
+  const loadAuthors = async () => {
+    if (!supabase) return;
+    const { data } = await supabase
+      .from("authors")
+      .select("id, display_name, user_profile_id")
+      .order("display_name")
+      .limit(1000);
+    if (data) setAuthors(data as AuthorLite[]);
+  };
+
+  useEffect(() => {
+    void loadAuthors();
+  }, []);
+
+  const setRowError = (memberId: string, message: string | null) => {
+    setErrorById((prev) => {
+      const next = new Map(prev);
+      if (message) next.set(memberId, message);
+      else next.delete(memberId);
+      return next;
+    });
+  };
+
+  /**
+   * Link/unlink an author byline for a member. Writes authors.user_profile_id
+   * directly (RLS: editor/admin ALL policy from docs/authors-user-profile-link.sql).
+   * `.select()` on every write so an RLS rejection surfaces instead of the
+   * silent-failure pattern we've been bitten by before.
+   */
+  const updateAuthorLink = async (member: Member, value: string) => {
+    if (!supabase) return;
+    setLinkSavingId(member.id);
+    setRowError(member.id, null);
+
+    const current = authors.find((a) => a.user_profile_id === member.id) || null;
+
+    try {
+      // Create a fresh authors row for this member
+      if (value === CREATE_AUTHOR) {
+        const { data, error } = await supabase
+          .from("authors")
+          .insert({ display_name: member.display_name, user_profile_id: member.id })
+          .select("id, display_name, user_profile_id");
+        if (error) throw new Error(error.message);
+        if (!data || data.length === 0) throw new Error("Insert blocked — apply docs/authors-user-profile-link.sql (editor/admin policy on authors).");
+        // If the member already had a different linked author, unlink it so
+        // resolveAuthor and the member page have a single byline identity.
+        if (current && current.id !== data[0].id) {
+          await supabase.from("authors").update({ user_profile_id: null }).eq("id", current.id).select("id");
+        }
+        await loadAuthors();
+        return;
+      }
+
+      // Unlink
+      if (value === "") {
+        if (current) {
+          const { data, error } = await supabase
+            .from("authors")
+            .update({ user_profile_id: null })
+            .eq("id", current.id)
+            .select("id");
+          if (error) throw new Error(error.message);
+          if (!data || data.length === 0) throw new Error("Unlink blocked by RLS — apply docs/authors-user-profile-link.sql.");
+        }
+        await loadAuthors();
+        return;
+      }
+
+      // Link an existing author row
+      const target = authors.find((a) => a.id === value);
+      if (!target) return;
+      if (target.user_profile_id && target.user_profile_id !== member.id) {
+        const ok = confirm(
+          `"${target.display_name}" is already linked to another member. Move the link to ${member.display_name}?`
+        );
+        if (!ok) return;
+      }
+      const { data, error } = await supabase
+        .from("authors")
+        .update({ user_profile_id: member.id })
+        .eq("id", target.id)
+        .select("id");
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) throw new Error("Link blocked by RLS — apply docs/authors-user-profile-link.sql.");
+      // One byline identity per member: unlink any previous author row.
+      if (current && current.id !== target.id) {
+        await supabase.from("authors").update({ user_profile_id: null }).eq("id", current.id).select("id");
+      }
+      await loadAuthors();
+    } catch (e) {
+      setRowError(member.id, (e as Error).message);
+    } finally {
+      setLinkSavingId(null);
+    }
+  };
 
   const runFollowBackfill = async () => {
     if (backfillRunning) return;
@@ -193,6 +305,32 @@ export default function AdminMembersPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
+                      {/* Author byline link — the member side of authors.user_profile_id.
+                          Same link /admin/authors manages from the author side. */}
+                      {(() => {
+                        const linked = authors.find((a) => a.user_profile_id === member.id) || null;
+                        const isLinkSaving = linkSavingId === member.id;
+                        return (
+                          <select
+                            value={linked?.id || ""}
+                            onChange={(e) => void updateAuthorLink(member, e.target.value)}
+                            disabled={isLinkSaving}
+                            className={`px-3 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-brand-blue disabled:opacity-50 max-w-[180px] ${
+                              linked ? "border-brand-blue/40 text-brand-blue" : "border-zinc-200 text-zinc-500"
+                            }`}
+                            title="Author byline — links this member to an authors row so blog bylines render their live profile"
+                          >
+                            <option value="">No author byline</option>
+                            <option value={CREATE_AUTHOR}>＋ Create author from this member</option>
+                            {authors.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.display_name}
+                                {a.user_profile_id && a.user_profile_id !== member.id ? " (linked elsewhere)" : ""}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      })()}
                       <select
                         value={member.role}
                         onChange={(e) => updateMember(member.id, { role: e.target.value as Role })}

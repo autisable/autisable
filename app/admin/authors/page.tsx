@@ -20,6 +20,12 @@ interface Author {
   avatar_url: string | null;
 }
 
+interface MemberLite {
+  id: string;
+  display_name: string;
+  email: string;
+}
+
 export default function AdminAuthorsPage() {
   const [authors, setAuthors] = useState<Author[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,6 +33,12 @@ export default function AdminAuthorsPage() {
   const [editData, setEditData] = useState<Author | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  // id → member for every linked author, so rows and the edit modal can show
+  // WHO an author is linked to instead of just "member-linked".
+  const [linkedMembers, setLinkedMembers] = useState<Record<string, MemberLite>>({});
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberResults, setMemberResults] = useState<MemberLite[]>([]);
+  const [memberSearching, setMemberSearching] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -37,15 +49,71 @@ export default function AdminAuthorsPage() {
       )
       .order("display_name")
       .limit(1000)
-      .then(({ data }) => {
-        if (data) setAuthors(data as Author[]);
+      .then(async ({ data }) => {
+        if (data) {
+          setAuthors(data as Author[]);
+          // Resolve linked member names in one batch query. Requires the
+          // editor/admin SELECT policy on user_profiles (docs/user-profiles-admin-rls-fix.sql).
+          const ids = [...new Set((data as Author[]).map((a) => a.user_profile_id).filter(Boolean))] as string[];
+          if (ids.length > 0 && supabase) {
+            const { data: profiles } = await supabase
+              .from("user_profiles")
+              .select("id, display_name, email")
+              .in("id", ids);
+            if (profiles) {
+              const map: Record<string, MemberLite> = {};
+              for (const p of profiles as MemberLite[]) map[p.id] = p;
+              setLinkedMembers(map);
+            }
+          }
+        }
         setLoading(false);
       });
   }, []);
 
+  // Debounced member search for the link picker in the edit modal.
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      if (!memberSearch.trim() || !supabase) {
+        setMemberResults([]);
+        return;
+      }
+      setMemberSearching(true);
+      // Strip PostgREST or() delimiters so names with commas/parens don't
+      // break the filter expression.
+      const q = memberSearch.trim().replace(/[,()]/g, " ");
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("id, display_name, email")
+        .or(`display_name.ilike.%${q}%,email.ilike.%${q}%`)
+        .order("display_name")
+        .limit(8);
+      setMemberResults((data as MemberLite[]) || []);
+      setMemberSearching(false);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [memberSearch]);
+
   const handleEdit = (author: Author) => {
     setEditing(author.id);
     setEditData({ ...author });
+    setMemberSearch("");
+    setMemberResults([]);
+  };
+
+  // Selecting a member only updates local edit state; the link is written
+  // (with everything else) on Save so Cancel really cancels.
+  const handlePickMember = (m: MemberLite) => {
+    if (!editData) return;
+    setEditData({ ...editData, user_profile_id: m.id });
+    setLinkedMembers((prev) => ({ ...prev, [m.id]: m }));
+    setMemberSearch("");
+    setMemberResults([]);
+  };
+
+  const handleUnlinkMember = () => {
+    if (!editData) return;
+    setEditData({ ...editData, user_profile_id: null });
   };
 
   const handleSave = async () => {
@@ -65,6 +133,7 @@ export default function AdminAuthorsPage() {
         instagram: editData.instagram,
         linkedin: editData.linkedin,
         youtube: editData.youtube,
+        user_profile_id: editData.user_profile_id,
       })
       .eq("id", editData.id)
       .select("id");
@@ -120,17 +189,69 @@ export default function AdminAuthorsPage() {
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
-              {editData.user_profile_id && (
-                <div className="mb-4 p-3 bg-brand-blue-light/40 border border-brand-blue/20 rounded-lg text-xs text-zinc-700">
-                  <p className="font-medium text-zinc-900">Linked to a member profile</p>
-                  <p className="mt-1">
-                    Bylines on blog posts pull bio, avatar, and social links from the member&apos;s
-                    profile when those fields are set there — values entered below act as fallbacks
-                    only. Tell the member to edit their profile at <code className="text-[11px]">/dashboard/profile</code>
-                    to update what readers see.
-                  </p>
-                </div>
-              )}
+              {/* Member link picker — this is how an author becomes a
+                  member-author. Linked bylines render live member-profile
+                  data; fields below act as fallbacks only. */}
+              <div className="mb-4 p-3 bg-brand-blue-light/40 border border-brand-blue/20 rounded-lg text-xs text-zinc-700">
+                <p className="font-medium text-zinc-900 mb-2">Linked member profile</p>
+                {editData.user_profile_id ? (
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/member/${editData.user_profile_id}`}
+                        target="_blank"
+                        className="font-medium text-brand-blue hover:underline truncate block"
+                      >
+                        {linkedMembers[editData.user_profile_id]?.display_name || "View member profile"}
+                      </Link>
+                      {linkedMembers[editData.user_profile_id]?.email && (
+                        <p className="text-zinc-500 truncate">{linkedMembers[editData.user_profile_id].email}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleUnlinkMember}
+                      className="shrink-0 px-2 py-1 text-[11px] font-medium text-brand-red hover:bg-red-50 border border-red-200 rounded-lg"
+                    >
+                      Unlink
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={memberSearch}
+                      onChange={(e) => setMemberSearch(e.target.value)}
+                      placeholder="Search members by name or email to link…"
+                      className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-xs bg-white"
+                    />
+                    {memberSearching && (
+                      <p className="mt-1 text-zinc-400">Searching…</p>
+                    )}
+                    {memberResults.length > 0 && (
+                      <ul className="mt-1 border border-zinc-200 rounded-lg bg-white divide-y divide-zinc-100 max-h-48 overflow-y-auto">
+                        {memberResults.map((m) => (
+                          <li key={m.id}>
+                            <button
+                              onClick={() => handlePickMember(m)}
+                              className="w-full text-left px-3 py-2 hover:bg-brand-blue-light/40"
+                            >
+                              <span className="font-medium text-zinc-900">{m.display_name}</span>
+                              <span className="text-zinc-400 ml-2">{m.email}</span>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {memberSearch.trim() && !memberSearching && memberResults.length === 0 && (
+                      <p className="mt-1 text-zinc-400">No members match.</p>
+                    )}
+                  </div>
+                )}
+                <p className="mt-2 text-zinc-500">
+                  When linked, bylines pull bio, avatar, and socials from the member&apos;s profile
+                  (<code className="text-[11px]">/dashboard/profile</code>); the fields below are fallbacks.
+                </p>
+              </div>
               <div className="space-y-3">
                 {[
                   { key: "display_name", label: "Name" },
@@ -197,7 +318,9 @@ export default function AdminAuthorsPage() {
                           title="This author is linked to a member profile. Bylines render live data from the member's /dashboard/profile."
                           className="shrink-0 px-1.5 py-0.5 bg-brand-blue-light text-brand-blue text-[10px] font-semibold uppercase tracking-wider rounded-full cursor-help"
                         >
-                          member-linked
+                          {linkedMembers[author.user_profile_id]
+                            ? `member: ${linkedMembers[author.user_profile_id].display_name}`
+                            : "member-linked"}
                         </span>
                       )}
                     </div>

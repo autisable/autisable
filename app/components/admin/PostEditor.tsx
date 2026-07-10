@@ -19,7 +19,7 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
-  const [authors, setAuthors] = useState<{ id: string; display_name: string }[]>([]);
+  const [authors, setAuthors] = useState<{ id: string; display_name: string; user_profile_id: string | null }[]>([]);
   const [showSeo, setShowSeo] = useState(false);
   const [seoBusy, setSeoBusy] = useState(false);
   const [seoError, setSeoError] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
     // Load authors
     supabase
       .from("authors")
-      .select("id, display_name")
+      .select("id, display_name, user_profile_id")
       .order("display_name")
       .limit(1000)
       .then(({ data }) => {
@@ -764,9 +764,20 @@ export default function PostEditor({ post: initialPost, isNew }: Props) {
             >
               <option value="">Select author</option>
               {authors.map((a) => (
-                <option key={a.id} value={a.id}>{a.display_name}</option>
+                <option key={a.id} value={a.id}>
+                  {a.display_name}
+                  {a.user_profile_id ? " • member" : ""}
+                </option>
               ))}
             </select>
+            {(() => {
+              const sel = authors.find((a) => a.id === post.author_id);
+              return sel?.user_profile_id ? (
+                <p className="mt-2 text-[11px] text-zinc-400">
+                  Member-linked author — the published byline renders live data from their member profile.
+                </p>
+              ) : null;
+            })()}
           </div>
 
           {/* Options */}
